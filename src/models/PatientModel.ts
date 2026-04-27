@@ -18,6 +18,7 @@ const PatientSchema = new Schema<PatientDocumentInterface>({
     type: String,
     required: true,
     trim: true,
+    minlength: [3, "Full name must be at least 3 char long"]
   },
 
   identificationNumber: {
@@ -26,6 +27,7 @@ const PatientSchema = new Schema<PatientDocumentInterface>({
     required: true,
     trim: true,
     uppercase: true,
+    minlength: [5, "ID number must be at least 5 char long"]
   },
 
   birthDate: {
@@ -90,6 +92,8 @@ const PatientSchema = new Schema<PatientDocumentInterface>({
   alergies: {
     type: [String],
     default: [],
+    trim: true,
+    lowercase: true
   },
 
   bloodGroup: {
@@ -130,7 +134,7 @@ PatientSchema.virtual('age').get(function() {
 });
 
 // incluir propiedad virtual en los json/objetos para que sea
-// visible para el resto de modelos o rutas
+// visible para el resto pero sin guardar en la base de datos
 PatientSchema.set('toJSON', { virtuals: true });
 PatientSchema.set('toObject', { virtuals: true });
 
