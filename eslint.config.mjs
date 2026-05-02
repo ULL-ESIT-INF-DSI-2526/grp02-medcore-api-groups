@@ -21,7 +21,7 @@ export default defineConfig([
   },
   {
     rules: {
-      "tsdoc/syntax": "warn",
+      "tsdoc/syntax": ["warn", { "allParamsRequired": false, "customTags": ["openapi"] }]
     },
   },
   { ignores: ["eslint.config.mjs", "dist/*", "docs/*"] },
