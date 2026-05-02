@@ -43,7 +43,9 @@ patientRouter.get("/patients", async (req, res) => {
         fullName: req.query.fullName.toString(),
       });
       if (patients.length === 0) {
-        return res.status(404).send({ msg: "No se encontraron pacientes con ese nombre" });
+        return res
+          .status(404)
+          .send({ msg: "No se encontraron pacientes con ese nombre" });
       }
       return res.status(200).send(patients);
     }
@@ -53,7 +55,9 @@ patientRouter.get("/patients", async (req, res) => {
         identificationNumber: req.query.identificationNumber.toString(),
       });
       if (!patient) {
-        return res.status(404).send({ msg: "No se encontró el paciente con ese ID" });
+        return res
+          .status(404)
+          .send({ msg: "No se encontró el paciente con ese ID" });
       }
       return res.status(200).send(patient);
     }
@@ -61,12 +65,26 @@ patientRouter.get("/patients", async (req, res) => {
     // Respuesta por defecto ?
     const allPatients = await Patient.find({});
     return res.status(200).send(allPatients);
-
   } catch (error) {
-    console.error("Error en GET /patients:", error);
-    return res.status(500).send({ 
-      msg: "Error interno al buscar pacientes", 
-      error: error instanceof Error ? error.message : error 
+    console.error("Error en GET /patients con query string", error);
+    return res.status(500).send({
+      msg: "Error interno al buscar pacientes",
+      error: error instanceof Error ? error.message : error,
     });
+  }
+});
+
+patientRouter.get("/patients/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const patient = await Patient.findById(id);
+
+    if (!patient) {
+      return res.status(404).send({ msg: "Paciente no encontrado" });
+    }
+    return res.status(200).send(patient);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ msg: "Error al buscar el paciente" });
   }
 });
