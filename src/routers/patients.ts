@@ -31,7 +31,6 @@ export const patientRouter = express.Router();
  * schema:
  * type: array
  * items:
- * $ref: '#/components/schemas/Patient'
  * 404:
  * description: No se encontró el paciente
  * 500:
