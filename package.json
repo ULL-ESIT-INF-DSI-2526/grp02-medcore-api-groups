@@ -1,5 +1,5 @@
 {
-  "name": "notes-rest-api",
+  "name": "medcore-rest-api",
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
