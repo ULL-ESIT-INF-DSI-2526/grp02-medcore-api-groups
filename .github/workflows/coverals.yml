@@ -17,6 +17,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 25.x
+      - name: Start MongoDB 8.0
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: '8.0'
       - name: Installing dependencies
         run: npm ci
       - name: Generating coverage information
