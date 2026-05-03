@@ -51,3 +51,22 @@ staffRouter.get('/staff/:id', async (req, res) => {
     return res.status(500).send({ msg: 'Error retrieving staff member' });
   }
 });
+
+staffRouter.post('/staff', async (req, res) => {
+  try {
+    const { collegiateNumber } = req.body;
+    const existingStaff = await Staff.findOne({ collegiateNumber });
+    if (existingStaff) {
+      return res.status(409).send({ msg: 'Collegiate number already exists' });
+    }
+    const newStaff = new Staff(req.body);
+    await newStaff.save();
+    return res.status(201).send(newStaff);
+  } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).send({ msg: 'Validation failed', errors });
+    }
+    return res.status(500).send({ msg: "Error creating staff member" });
+  }
+});

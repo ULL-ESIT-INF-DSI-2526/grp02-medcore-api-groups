@@ -95,3 +95,47 @@ describe("GET /staff/:id", () => {
     expect(response.body.msg).toBe("No staff member found with that ID");
   });
 });
+
+describe("POST /staff", () => {
+  beforeEach(async () => {
+    await Staff.deleteMany();
+  });
+
+  test("Debería crear un nuevo miembro del staff correctamente", async () => {
+    const response = await request(app).post("/staff").send(staffMember1).expect(201);
+    expect(response.body.fullName).toBe(staffMember1.fullName);
+    expect(response.body.collegiateNumber).toBe(staffMember1.collegiateNumber);
+    expect(response.body._id).toBeDefined();
+    expect(response.body.createdAt).toBeDefined();
+    expect(response.body.updatedAt).toBeDefined();
+  });
+
+  test("Debería devolver error 409 si el número de colegiado ya existía", async () => {
+    await request(app).post("/staff").send(staffMember1).expect(201);
+    const duplicateStaff = { ...staffMember2, collegiateNumber: staffMember1.collegiateNumber };
+    const response = await request(app).post("/staff").send(duplicateStaff).expect(409);
+    expect(response.body.msg).toBe("Collegiate number already exists");
+  });
+
+  test("Debería devolver error 400 si falta un campo requerido", async () => {
+    const invalidStaff = { fullName: "Dr. Incompleto" };
+    const response = await request(app).post("/staff").send(invalidStaff).expect(400);
+    expect(response.body.msg).toBe("Validation failed");
+    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors.length).toBeGreaterThan(0);
+  });
+
+  test("Debería devolver error 400 si la especialidad no es válida", async () => {
+    const invalidStaff = {...staffMember1, specialty: "especialidad-falsa"};
+    const response = await request(app).post("/staff").send(invalidStaff).expect(400);
+    expect(response.body.msg).toBe("Validation failed");
+    expect(response.body.errors[0]).toContain("is not a valid specialty");
+  });
+
+  test("Debería devolver error 400 si la categoría no es válida", async () => {
+    const invalidStaff = {...staffMember1, category: "categoria-falsa"};
+    const response = await request(app).post("/staff").send(invalidStaff).expect(400);
+    expect(response.body.msg).toBe("Validation failed");
+    expect(response.body.errors[0]).toContain("is not a valid professional category");
+  });
+});
