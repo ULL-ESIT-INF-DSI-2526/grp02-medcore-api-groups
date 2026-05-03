@@ -1,10 +1,9 @@
-import { Document } from "mongoose";
 import { Specialty } from "../enums/StaffSpecialty.js";
 import { Category } from "../enums/StaffCategory.js";
 import { Shift } from "../enums/StaffShift.js";
 
 /** Interfaz de define la estructura del staff en el sistema */
-export interface IStaff extends Document {
+export interface IStaff {
   fullName: string;
   collegiateNumber: string;
   specialty: Specialty;
