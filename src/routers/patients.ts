@@ -20,18 +20,18 @@ patientRouter.get("/patients", async (req, res) => {
       if (!patient)
         return res
           .status(404)
-          .send({ msg: "Paciente no encontrado con ese criterio" });
+          .send({ msg: "Patient not found for that identification" });
       return res.status(200).send(patient);
     }
 
     const patients = await Patient.find(queryFilter);
     if (patients.length === 0) {
-      return res.status(404).send({ msg: "No se encontraron pacientes" });
+      return res.status(404).send({ msg: "No patients found" });
     }
 
     return res.status(200).send(patients);
   } catch (error) {
-    return res.status(500).send({ msg: "Error al buscar pacientes" });
+    return res.status(500).send({ msg: "Error searching patients" });
   }
 });
 
@@ -45,13 +45,13 @@ patientRouter.get("/patients/:id", async (req, res) => {
     if (!patient) {
       return res
         .status(404)
-        .send({ msg: "Paciente no encontrado o se encuentra inactivo" });
+        .send({ msg: "Patient not found or has inactive status" });
     }
     return res.status(200).send(patient);
   } catch (error) {
     return res
       .status(500)
-      .send({ msg: "Error al buscar el paciente (formato de ID inválido)" });
+      .send({ msg: "Error searching patient, format id invalid" });
   }
 });
 
@@ -69,30 +69,29 @@ patientRouter.post("/patients", async (req, res) => {
           { new: true, runValidators: true },
         );
         return res.status(200).send({
-          msg: "Paciente reactivado con éxito",
+          msg: "Patient reactivated succesfully",
           patient: reactivated,
         });
       }
 
       return res
         .status(409)
-        .send({ msg: "El paciente ya existe y está activo" });
+        .send({ msg: "Patient already exists and has active status" });
     }
 
     const patient = new Patient(req.body);
     await patient.save();
     return res.status(201).send(patient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error al procesar el alta", error });
+    return res.status(400).send({ msg: "Error setting active status", error });
   }
 });
-
 
 patientRouter.patch("/patients", async (req, res) => {
   try {
     const { identificationNumber } = req.query;
     if (!identificationNumber)
-      return res.status(400).send({ msg: "Se requiere identificationNumber" });
+      return res.status(400).send({ msg: "ID number required" });
 
     const updatedPatient = await Patient.findOneAndUpdate(
       {
@@ -106,10 +105,10 @@ patientRouter.patch("/patients", async (req, res) => {
     if (!updatedPatient)
       return res
         .status(404)
-        .send({ msg: "No se encontró el paciente activo para actualizar" });
+        .send({ msg: "Patient to modify not found" });
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error al actualizar" });
+    return res.status(400).send({ msg: "Error updating" });
   }
 });
 
@@ -122,10 +121,10 @@ patientRouter.patch("/patients/:id", async (req, res) => {
     );
 
     if (!updatedPatient)
-      return res.status(404).send({ msg: "Paciente no encontrado o inactivo" });
+      return res.status(404).send({ msg: "Patient not found or has inactive status" });
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error al actualizar por ID" });
+    return res.status(400).send({ msg: "Error updating by ID" });
   }
 });
 
@@ -133,7 +132,7 @@ patientRouter.delete("/patients", async (req, res) => {
   try {
     const { identificationNumber } = req.query;
     if (!identificationNumber)
-      return res.status(400).send({ msg: "Falta paciente a eliminar" });
+      return res.status(400).send({ msg: "Patient missing to delete" });
 
     const patient = await Patient.findOneAndUpdate(
       {
@@ -147,12 +146,12 @@ patientRouter.delete("/patients", async (req, res) => {
     if (!patient)
       return res
         .status(404)
-        .send({ msg: "Paciente no encontrado o ya estaba inactivo" });
+        .send({ msg: "Patient not found or already has inactive status" });
     return res
       .status(200)
-      .send({ msg: "Paciente marcado como inactivo correctamente", patient });
+      .send({ msg: "Patient status set to inactive succesfully", patient });
   } catch (error) {
-    return res.status(500).send({ msg: "Error al desactivar" });
+    return res.status(500).send({ msg: "Error setting inactive status" });
   }
 });
 
@@ -167,11 +166,11 @@ patientRouter.delete("/patients/:id", async (req, res) => {
     if (!patient)
       return res
         .status(404)
-        .send({ msg: "Paciente no encontrado para desactivar" });
+        .send({ msg: "Patient not found to set inactive status" });
     return res
       .status(200)
-      .send({ msg: "Paciente marcado como inactivo correctamente", patient });
+      .send({ msg: "Patient status set to inactive succesfully", patient });
   } catch (error) {
-    return res.status(500).send({ msg: "Error al desactivar" });
+    return res.status(500).send({ msg: "Error setting inactive status" });
   }
 });

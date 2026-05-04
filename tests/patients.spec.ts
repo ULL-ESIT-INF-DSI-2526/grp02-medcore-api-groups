@@ -121,7 +121,7 @@ describe("Pruebas del API de Pacientes", () => {
         const res = await request(app)
           .get("/patients/id-no-valido")
           .expect(500);
-        expect(res.body.msg).toContain("formato de ID inválido");
+        expect(res.body.msg).toContain("format id invalid");
       });
     });
 
@@ -158,7 +158,7 @@ describe("Pruebas del API de Pacientes", () => {
         .send(firstPatient)
         .expect(200);
 
-      expect(res.body.msg).toContain("reactivado");
+      expect(res.body.msg).toContain("reactivated");
       expect(res.body.patient.patientStatus).toBe("active");
     });
 
@@ -197,7 +197,7 @@ describe("Pruebas del API de Pacientes", () => {
         .delete(`/patients/${createdPatientId}`)
         .expect(200);
 
-      expect(res.body.msg).toContain("inactivo");
+      expect(res.body.msg).toContain("inactive");
 
       const search = await Patient.findById(createdPatientId);
       expect(search?.patientStatus).toBe("inactive");
