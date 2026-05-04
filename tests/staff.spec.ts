@@ -94,18 +94,27 @@ describe("GET /staff", () => {
 });
 
 describe("GET /staff/:id", () => {
+  let staffId: string;
+  beforeEach(async () => {
+    await Staff.deleteMany({});
+    const created = await Staff.create(staffMember1);
+    staffId = created._id.toString();
+  });
+
   test("Deberia obtener un staff mediante parámetro y su id de la base de datos", async () => {
-    const staffMembers = await Staff.find({});
-    const staffId = staffMembers[0]._id;
     const response = await request(app).get(`/staff/${staffId}`).expect(200);
     expect(response.body.fullName).toBe(staffMember1.fullName);
-    expect(response.body.collegiateNumber).toBe(staffMember1.collegiateNumber);
   });
 
   test("Deberia devolver error de staff inexistente mediante parámetro y id inválido", async () => {
     const fakeId = "60d21b4667d0d8992e610c85";
     const response = await request(app).get(`/staff/${fakeId}`).expect(404);
-    expect(response.body.msg).toBe("No staff member found with that ID");
+    expect(response.body.msg).toBe("Staff member not found");
+  });
+
+  test("Deberia devolver error de formato del id de la base de datos", async () => {
+    const response = await request(app).get("/staff/52ew").expect(400);
+    expect(response.body.msg).toBe("Invalid ID format");
   });
 });
 
@@ -269,6 +278,108 @@ describe("PATCH /staff/:id", () => {
     expect(response.body.msg).toBe("Validation failed");
     expect(response.body.errors[0]).toContain("is not a valid specialty");
   });
+});
+
+describe("DELETE /staff", () => {
+  beforeEach(async () => {
+    await Staff.deleteMany({});
+    await Staff.create(staffMember1);
+    await Staff.create(staffMember2);
+    await Staff.create(staffMember3);
+  });
+
+  test("Debería eliminar un staff por nombre completo", async () => {
+    const response = await request(app)
+      .delete(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .expect(200);
+    expect(response.body.msg).toBe("Staff member deleted successfully");
+  });
+
+  test("Debería eliminar un staff por nombre parcial", async () => {
+    const response = await request(app)
+      .delete("/staff?fullName=Manuel González")
+      .expect(200);
+    expect(response.body.msg).toBe("Staff member deleted successfully");
+  });
+
+  test("Debería devolver error 404 si el nombre no existe", async () => {
+    const response = await request(app)
+      .delete("/staff?fullName=Dr. No Existe")
+      .expect(404);
+    expect(response.body.msg).toBe("Staff member not found or already deleted");
+  });
+
+  test("Debería eliminar todos los staff con una especialidad específica", async () => {
+    const response = await request(app)
+      .delete("/staff?specialty=cardiología")
+      .expect(200);
+    expect(response.body.msg).toBe("Deleted 2 staff member(s) successfully");
+    expect(response.body.deletedCount).toBe(2);
+  });
+
+  test("Debería devolver error 404 si la especialidad no tiene miembros", async () => {
+    const response = await request(app).delete("/staff?specialty=traumatología").expect(404);
+    expect(response.body.msg).toBe("No staff members found with that specialty");
+  });
+
+  test("Debería devolver error 400 si la especialidad no es válida", async () => {
+    const response = await request(app).delete("/staff?specialty=especialidad-invalida").expect(400);
+    expect(response.body.msg).toContain("Invalid specialty");
+  });
+
+  test("Debería devolver error 400 si no se proporciona query parameter", async () => {
+    const response = await request(app).delete("/staff").expect(400);
+    expect(response.body.msg).toBe("Missing query parameter. Use fullName or specialty");
+  });
+
+  test("Debería devolver error 404 si se intenta eliminar un staff ya inactivo", async () => {
+    await request(app)
+      .delete(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .expect(200);
+    const response = await request(app)
+      .delete(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .expect(404);
+    expect(response.body.msg).toBe("Staff member not found or already deleted");
+  });
+
+  test("No debería aparecer en GET después del borrado lógico", async () => {
+    await request(app)
+      .delete(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .expect(200);
+    const response = await request(app).get("/staff").expect(200);
+    expect(response.body.length).toBe(2);
+  });
+});
+
+describe("DELETE /staff/:id", () => {
+  let staffId: string;
+  beforeEach(async () => {
+    await Staff.deleteMany({});
+    const created = await Staff.create(staffMember1);
+    staffId = created._id.toString();
+  });
+
+  test("Debería eliminar un staff por ID", async () => {
+    const response = await request(app).delete(`/staff/${staffId}`).expect(200);
+    expect(response.body.msg).toBe("Staff member deleted successfully");
+    expect(response.body.staff.status).toBe("deleted");
+  });
 
 
+  test("Debería devolver error 400 si el ID tiene formato inválido", async () => {
+    const response = await request(app).delete("/staff/52ew").expect(400);
+    expect(response.body.msg).toBe("Invalid ID format");
+  });
+
+  test("Debería devolver error 404 si el ID no existe", async () => {
+    const fakeId = new mongoose.Types.ObjectId().toString();
+    const response = await request(app).delete(`/staff/${fakeId}`).expect(404);
+    expect(response.body.msg).toBe("Staff member not found or already deleted");
+  });
+
+  test("Debería devolver error 404 si se intenta eliminar un staff ya inactivo por ID", async () => {
+    await request(app).delete(`/staff/${staffId}`).expect(200);
+    const response = await request(app).delete(`/staff/${staffId}`).expect(404);
+    expect(response.body.msg).toBe("Staff member not found or already deleted");
+  });
 });

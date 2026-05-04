@@ -5,47 +5,53 @@ import { spec } from "node:test/reporters";
 
 export const staffRouter = express.Router();
 
-staffRouter.get('/staff', async (req, res) => {
+staffRouter.get("/staff", async (req, res) => {
   try {
     if (req.query.fullName) {
       const fullName = req.query.fullName.toString();
       const staffMembers = await Staff.find({
-        fullName: { $regex: fullName, $options: 'i' }
+        fullName: { $regex: fullName, $options: 'i' },
+        status: { $in: ['active', 'inactive'] }
       });
       if (staffMembers.length === 0) {
-        return res.status(404).send({ msg: 'No staff members found with that name' })
+        return res.status(404).send({ msg: "No staff members found with that name" });
       }
       return res.status(200).send(staffMembers);
     }
 
     if (req.query.specialty) {
       const specialty = req.query.specialty.toString();
-      if (!Object.values(Specialty).includes(specialty as Specialty)) {
-        return res.status(400).send({ msg: `Invalid specialty. Allowed values: ${Object.values(Specialty).join(', ')}` });
+      const validSpecialties = Object.values(Specialty);
+      if (!validSpecialties.includes(specialty as Specialty)) {
+        return res.status(400).send({ 
+          msg: `Invalid specialty. Allowed values: ${validSpecialties.join(', ')}` 
+        });
       }
-      const staffMembers = await Staff.find({ specialty });
-      if(staffMembers.length === 0) {
-        return res.status(404).send({ msg: 'No staff members found with that specialty' })
+      const staffMembers = await Staff.find({ specialty, status: { $in: ['active', 'inactive'] } });
+      if (staffMembers.length === 0) {
+        return res.status(404).send({ msg: "No staff members found with that specialty" });
       }
       return res.status(200).send(staffMembers);
     }
 
-    const allStaff = await Staff.find({});
+    const allStaff = await Staff.find({ status: { $in: ['active', 'inactive'] } });
     return res.status(200).send(allStaff);
   } catch (error) {
     return res.status(500).send({
       msg: "Internal error while searching staff members",
-      error: error instanceof Error ? error.message : error,
     });
   }
 });
 
-staffRouter.get('/staff/:id', async (req, res) => {
+staffRouter.get("/staff/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const staffMember = await Staff.findById(id);
-    if(!staffMember) {
-      return res.status(404).send({ msg: 'No staff member found with that ID' });
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).send({ msg: "Invalid ID format" });
+    }
+    const staffMember = await Staff.findOne({ _id: id, status: { $in: ['active', 'inactive'] } });
+    if (!staffMember) {
+      return res.status(404).send({ msg: "Staff member not found" });
     }
     return res.status(200).send(staffMember);
   } catch (error) {
@@ -125,7 +131,7 @@ staffRouter.patch('/staff', async (req, res) => {
   }
 });
 
-staffRouter.patch("/staff/:id", async (req, res) => {
+staffRouter.patch('/staff/:id', async (req, res) => {
   try {
     const id = req.params.id;
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -158,5 +164,72 @@ staffRouter.patch("/staff/:id", async (req, res) => {
       return res.status(400).send({ msg: "Validation failed", errors });
     }
     return res.status(500).send({ msg: "Error updating staff member" });
+  }
+});
+
+staffRouter.delete('/staff', async (req, res) => {
+  try {
+    const { fullName, specialty } = req.query;
+    if (fullName) {
+      const staff = await Staff.findOneAndUpdate(
+        { fullName: { $regex: fullName.toString(), $options: 'i' }, status: 'active' },
+        { status: 'deleted', deletedAt: new Date() },
+        { new: true }
+      );
+      if (!staff) {
+        return res.status(404).send({ msg: 'Staff member not found or already deleted' });
+      }
+      return res.status(200).send({ msg: 'Staff member deleted successfully' });
+    }
+
+    if (specialty) {
+      const specialtyStr = specialty.toString();
+      const validSpecialties = Object.values(Specialty);
+      
+      if (!validSpecialties.includes(specialtyStr as Specialty)) {
+        return res.status(400).send({ 
+          msg: `Invalid specialty. Allowed values: ${validSpecialties.join(', ')}` 
+        });
+      }
+      
+      const result = await Staff.updateMany(
+        { specialty: specialtyStr, status: "active" },
+        { status: "deleted", deletedAt: new Date() }
+      );
+      
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ msg: "No staff members found with that specialty" });
+      }
+      
+      return res.status(200).send({ 
+        msg: `Deleted ${result.modifiedCount} staff member(s) successfully`,
+        deletedCount: result.modifiedCount
+      });
+    }
+
+    return res.status(400).send({ msg: "Missing query parameter. Use fullName or specialty" });
+  } catch (error) {
+    return res.status(500).send({ msg: "Error deleting staff member" });
+  }
+});
+
+staffRouter.delete("/staff/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).send({ msg: "Invalid ID format" });
+    }
+    const staff = await Staff.findOneAndUpdate(
+      { _id: id, status: "active" },
+      { status: "deleted", deletedAt: new Date() },
+      { new: true }
+    );
+    if (!staff) {
+      return res.status(404).send({ msg: "Staff member not found or already deleted" });
+    }
+
+    return res.status(200).send({ msg: "Staff member deleted successfully", staff });
+  } catch (error) {
+    return res.status(500).send({ msg: "Error deleting staff member" });
   }
 });

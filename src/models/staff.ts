@@ -74,10 +74,14 @@ const StaffSchema = new Schema<IStaff>(
       type: String,
       required: [true, 'Status is required'],
       enum: {
-        values: ['active', 'inactive'] as string[],
+        values: ['active', 'inactive', 'deleted'] as string[],
         message: '{VALUE} is not a valid status. Allowed values: active, inactive'
       },
       default: 'active'
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {

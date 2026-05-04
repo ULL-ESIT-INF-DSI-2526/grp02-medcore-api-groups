@@ -12,5 +12,6 @@ export interface IStaff {
   officeOrWard: string;
   yearsOfExperience: number;
   departmentContact: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'deleted';
+  deletedAt?: Date | null;
 }
