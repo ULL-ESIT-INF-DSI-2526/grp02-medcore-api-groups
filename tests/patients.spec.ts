@@ -15,33 +15,39 @@ const firstPatient: IPatient = {
   contactData: {
     address: "calle numero 3",
     phone: "644430413",
-    email: "alu0101539157@ull.edu.es"
+    email: "alu0101539157@ull.edu.es",
   },
   alergies: ["celiaquia"],
   bloodGroup: BloodGroup.APositive,
-  patientStatus: "active"
-}
+  patientStatus: "active",
+};
 
 describe("GET /patients", () => {
   test("Deberia obtener un paciente mediante query string y su nombre completo", async () => {
-    await request(app).get("/patients?fullName=Gabriel Martin Broock").expect(200)
-  })
+    await request(app)
+      .get("/patients?fullName=Gabriel Martin Broock")
+      .expect(200);
+  });
   test("Deberia devolver error de un paciente inexistente mediante query string y su nombre completo", async () => {
-    await request(app).get("/patients?fullName=Saray Liseth").expect(404)
-  })
+    await request(app).get("/patients?fullName=Saray Liseth").expect(404);
+  });
   test("Deberia obtener un paciente mediante query string y su identificacion", async () => {
-    await request(app).get("/patients?identificationNumber=12345678A").expect(200)
-  })
+    await request(app)
+      .get("/patients?identificationNumber=12345678A")
+      .expect(200);
+  });
   test("Deberia devolver error de un paciente inexistente mediante query string y su identificacion", async () => {
-    await request(app).get("/patients?identificationNumber=1343fds").expect(404)
-  })
+    await request(app)
+      .get("/patients?identificationNumber=1343fds")
+      .expect(404);
+  });
   test("Deberia obtener un paciente mediante parametro y su id de la base de datos", async () => {
-    await request(app).get("/patients/69f638a991ac348f6a762ea0").expect(200)
-  })
+    await request(app).get("/patients/69f638a991ac348f6a762ea0").expect(200);
+  });
   test("Deberia devolver error de un paciente inexistente mediante parametro y su id de la base de datos", async () => {
-    await request(app).get("/patients/69f638a991ac348f6a762ea6").expect(404)
-  })
+    await request(app).get("/patients/69f638a991ac348f6a762ea6").expect(404);
+  });
   test("Deberia devolver error de formato del id de la base de datos", async () => {
-    await request(app).get("/patients/52ew").expect(500)
-  })
-})
+    await request(app).get("/patients/52ew").expect(500);
+  });
+});

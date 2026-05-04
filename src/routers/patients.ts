@@ -88,3 +88,22 @@ patientRouter.get("/patients/:id", async (req, res) => {
     return res.status(500).send({ msg: "Error al buscar el paciente" });
   }
 });
+
+patientRouter.post("/patients", async (req, res) => {
+  try {
+    const patient = new Patient(req.body)
+    const existing = await Patient.findOne({identificationNumber: patient.identificationNumber})
+
+    if(existing) {
+      return res.status(409).send({msg: "El paciente ya existe"})
+    }
+
+    await patient.save()
+    return res.status(200).send(patient)
+  } catch (error) {
+    return res.status(400).send({
+      msg: "Error al guardar el paciente",
+      error: error instanceof Error ? error.message : error 
+    })
+  }
+})
