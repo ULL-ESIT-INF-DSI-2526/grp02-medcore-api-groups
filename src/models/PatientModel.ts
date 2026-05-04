@@ -31,7 +31,7 @@ const PatientSchema = new Schema<PatientDocumentInterface>({
   },
 
   birthDate: {
-    type: Date,
+    type: String,
     required: true,
   },
 

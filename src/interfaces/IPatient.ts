@@ -9,7 +9,7 @@ import { IPatientContactData } from "./IPatientContactData.js"
 export interface IPatient {
   fullName: string
   identificationNumber: string
-  birthDate: Date
+  birthDate: string
   socialNumber: string | null
   clinicNumber: string | null
   genre: Genre

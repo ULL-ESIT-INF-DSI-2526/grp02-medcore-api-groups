@@ -3,107 +3,175 @@ import { Patient } from "../models/PatientModel.js";
 
 export const patientRouter = express.Router();
 
-/**
- * Manejador para la gestión de pacientes (Lectura por query string o lista completa).
- * @openapi
- * /patients:
- * get:
- * summary: Busca pacientes por nombre o ID
- * description: Permite filtrar pacientes por fullName o identificationNumber. Si no se envían parámetros, devuelve todos.
- * tags:
- * - Patients
- * parameters:
- * - in: query
- * name: fullName
- * schema:
- * type: string
- * description: Nombre completo del paciente
- * - in: query
- * name: identificationNumber
- * schema:
- * type: string
- * description: DNI o Pasaporte del paciente
- * responses:
- * 200:
- * description: Operación exitosa
- * content:
- * application/json:
- * schema:
- * type: array
- * items:
- * 404:
- * description: No se encontró el paciente
- * 500:
- * description: Error interno del servidor
- */
 patientRouter.get("/patients", async (req, res) => {
   try {
-    if (req.query.fullName) {
-      const patients = await Patient.find({
-        fullName: req.query.fullName.toString(),
-      });
-      if (patients.length === 0) {
-        return res
-          .status(404)
-          .send({ msg: "No se encontraron pacientes con ese nombre" });
-      }
-      return res.status(200).send(patients);
-    }
+    const { fullName, identificationNumber, status } = req.query;
 
-    if (req.query.identificationNumber) {
-      const patient = await Patient.findOne({
-        identificationNumber: req.query.identificationNumber.toString(),
-      });
-      if (!patient) {
+    const queryFilter: any = {
+      patientStatus: status === "inactive" ? "inactive" : "active",
+    };
+
+    if (fullName) queryFilter.fullName = fullName.toString();
+    if (identificationNumber)
+      queryFilter.identificationNumber = identificationNumber.toString();
+
+    if (identificationNumber) {
+      const patient = await Patient.findOne(queryFilter);
+      if (!patient)
         return res
           .status(404)
-          .send({ msg: "No se encontró el paciente con ese ID" });
-      }
+          .send({ msg: "Paciente no encontrado con ese criterio" });
       return res.status(200).send(patient);
     }
 
-    // Respuesta por defecto ?
-    const allPatients = await Patient.find({});
-    return res.status(200).send(allPatients);
+    const patients = await Patient.find(queryFilter);
+    if (patients.length === 0) {
+      return res.status(404).send({ msg: "No se encontraron pacientes" });
+    }
+
+    return res.status(200).send(patients);
   } catch (error) {
-    console.error("Error en GET /patients con query string", error);
-    return res.status(500).send({
-      msg: "Error interno al buscar pacientes",
-      error: error instanceof Error ? error.message : error,
-    });
+    return res.status(500).send({ msg: "Error al buscar pacientes" });
   }
 });
 
 patientRouter.get("/patients/:id", async (req, res) => {
   try {
-    const id = req.params.id;
-    const patient = await Patient.findById(id);
+    const patient = await Patient.findOne({
+      _id: req.params.id,
+      patientStatus: "active",
+    });
 
     if (!patient) {
-      return res.status(404).send({ msg: "Paciente no encontrado" });
+      return res
+        .status(404)
+        .send({ msg: "Paciente no encontrado o se encuentra inactivo" });
     }
     return res.status(200).send(patient);
   } catch (error) {
-    console.error(error);
-    return res.status(500).send({ msg: "Error al buscar el paciente" });
+    return res
+      .status(500)
+      .send({ msg: "Error al buscar el paciente (formato de ID inválido)" });
   }
 });
 
 patientRouter.post("/patients", async (req, res) => {
   try {
-    const patient = new Patient(req.body)
-    const existing = await Patient.findOne({identificationNumber: patient.identificationNumber})
+    const { identificationNumber } = req.body;
 
-    if(existing) {
-      return res.status(409).send({msg: "El paciente ya existe"})
+    const existing = await Patient.findOne({ identificationNumber });
+
+    if (existing) {
+      if (existing.patientStatus === "inactive") {
+        const reactivated = await Patient.findByIdAndUpdate(
+          existing._id,
+          { ...req.body, patientStatus: "active" },
+          { new: true, runValidators: true },
+        );
+        return res.status(200).send({
+          msg: "Paciente reactivado con éxito",
+          patient: reactivated,
+        });
+      }
+
+      return res
+        .status(409)
+        .send({ msg: "El paciente ya existe y está activo" });
     }
 
-    await patient.save()
-    return res.status(200).send(patient)
+    const patient = new Patient(req.body);
+    await patient.save();
+    return res.status(201).send(patient);
   } catch (error) {
-    return res.status(400).send({
-      msg: "Error al guardar el paciente",
-      error: error instanceof Error ? error.message : error 
-    })
+    return res.status(400).send({ msg: "Error al procesar el alta", error });
   }
-})
+});
+
+
+patientRouter.patch("/patients", async (req, res) => {
+  try {
+    const { identificationNumber } = req.query;
+    if (!identificationNumber)
+      return res.status(400).send({ msg: "Se requiere identificationNumber" });
+
+    const updatedPatient = await Patient.findOneAndUpdate(
+      {
+        identificationNumber: identificationNumber.toString(),
+        patientStatus: "active",
+      },
+      req.body,
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedPatient)
+      return res
+        .status(404)
+        .send({ msg: "No se encontró el paciente activo para actualizar" });
+    return res.status(200).send(updatedPatient);
+  } catch (error) {
+    return res.status(400).send({ msg: "Error al actualizar" });
+  }
+});
+
+patientRouter.patch("/patients/:id", async (req, res) => {
+  try {
+    const updatedPatient = await Patient.findOneAndUpdate(
+      { _id: req.params.id, patientStatus: "active" },
+      req.body,
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedPatient)
+      return res.status(404).send({ msg: "Paciente no encontrado o inactivo" });
+    return res.status(200).send(updatedPatient);
+  } catch (error) {
+    return res.status(400).send({ msg: "Error al actualizar por ID" });
+  }
+});
+
+patientRouter.delete("/patients", async (req, res) => {
+  try {
+    const { identificationNumber } = req.query;
+    if (!identificationNumber)
+      return res.status(400).send({ msg: "Falta paciente a eliminar" });
+
+    const patient = await Patient.findOneAndUpdate(
+      {
+        identificationNumber: identificationNumber.toString(),
+        patientStatus: "active",
+      },
+      { patientStatus: "inactive" },
+      { new: true },
+    );
+
+    if (!patient)
+      return res
+        .status(404)
+        .send({ msg: "Paciente no encontrado o ya estaba inactivo" });
+    return res
+      .status(200)
+      .send({ msg: "Paciente marcado como inactivo correctamente", patient });
+  } catch (error) {
+    return res.status(500).send({ msg: "Error al desactivar" });
+  }
+});
+
+patientRouter.delete("/patients/:id", async (req, res) => {
+  try {
+    const patient = await Patient.findOneAndUpdate(
+      { _id: req.params.id, patientStatus: "active" },
+      { patientStatus: "inactive" },
+      { new: true },
+    );
+
+    if (!patient)
+      return res
+        .status(404)
+        .send({ msg: "Paciente no encontrado para desactivar" });
+    return res
+      .status(200)
+      .send({ msg: "Paciente marcado como inactivo correctamente", patient });
+  } catch (error) {
+    return res.status(500).send({ msg: "Error al desactivar" });
+  }
+});

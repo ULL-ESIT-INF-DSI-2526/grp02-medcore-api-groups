@@ -8,7 +8,7 @@ import { BloodGroup } from "../src/enums/BloodGroups.js";
 const firstPatient: IPatient = {
   fullName: "Gabriel Martin Broock",
   identificationNumber: "12345678A",
-  birthDate: new Date(20, 5, 2004),
+  birthDate: "2004-05-20",
   socialNumber: "numerosocialgab123",
   clinicNumber: "numeroclinicgab123",
   genre: "male",
@@ -22,32 +22,199 @@ const firstPatient: IPatient = {
   patientStatus: "active",
 };
 
-describe("GET /patients", () => {
-  test("Deberia obtener un paciente mediante query string y su nombre completo", async () => {
-    await request(app)
-      .get("/patients?fullName=Gabriel Martin Broock")
-      .expect(200);
+describe("Pruebas del API de Pacientes", () => {
+  let createdPatientId: string;
+  let createdPatientname: string;
+
+  beforeEach(async () => {
+    await Patient.deleteMany({});
+    const pat = await Patient.create(firstPatient);
+    createdPatientId = pat._id.toString();
+    createdPatientname = pat.fullName.toString();
   });
-  test("Deberia devolver error de un paciente inexistente mediante query string y su nombre completo", async () => {
-    await request(app).get("/patients?fullName=Saray Liseth").expect(404);
+
+  describe("GET /patients", () => {
+    describe("Búsqueda por Query String", () => {
+      test("Debería obtener la lista de todos los pacientes activos por defecto", async () => {
+        const res = await request(app).get("/patients").expect(200);
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body[0].patientStatus).toBe("active");
+      });
+
+      test("Debería encontrar un paciente activo por su nombre completo", async () => {
+        const res = await request(app)
+          .get(`/patients?fullName=${firstPatient.fullName}`)
+          .expect(200);
+        expect(res.body[0].fullName).toBe(firstPatient.fullName);
+      });
+
+      test("Debería encontrar un paciente activo por su identificación", async () => {
+        const res = await request(app)
+          .get(
+            `/patients?identificationNumber=${firstPatient.identificationNumber}`,
+          )
+          .expect(200);
+        expect(res.body.identificationNumber).toBe(
+          firstPatient.identificationNumber,
+        );
+      });
+
+      test("Debería listar todos los pacientes inactivos usando ?status=inactive", async () => {
+        await Patient.findByIdAndUpdate(createdPatientId, {
+          patientStatus: "inactive",
+        });
+
+        const res = await request(app)
+          .get("/patients?status=inactive")
+          .expect(200);
+
+        expect(res.body[0].patientStatus).toBe("inactive");
+      });
+
+      test("Debería encontrar un paciente específico inactivo por su nombre", async () => {
+        await Patient.findByIdAndUpdate(createdPatientId, {
+          patientStatus: "inactive",
+        });
+
+        const res = await request(app)
+          .get(`/patients?fullName=${firstPatient.fullName}&status=inactive`)
+          .expect(200);
+
+        expect(res.body[0].patientStatus).toBe("inactive");
+        expect(res.body[0].fullName).toBe(firstPatient.fullName);
+      });
+
+      test("Debería encontrar un paciente específico inactivo por su DNI", async () => {
+        await Patient.findByIdAndUpdate(createdPatientId, {
+          patientStatus: "inactive",
+        });
+
+        const res = await request(app)
+          .get(
+            `/patients?identificationNumber=${firstPatient.identificationNumber}&status=inactive`,
+          )
+          .expect(200);
+
+        expect(res.body.patientStatus).toBe("inactive");
+        expect(res.body.identificationNumber).toBe(
+          firstPatient.identificationNumber,
+        );
+      });
+    });
+
+    describe("Búsqueda por ID de base de datos", () => {
+      test("Debería obtener un paciente por su ID de base de datos si está activo", async () => {
+        const res = await request(app)
+          .get(`/patients/${createdPatientId}`)
+          .expect(200);
+        expect(res.body._id).toBe(createdPatientId);
+      });
+
+      test("Debería devolver 404 si el paciente existe pero está inactivo", async () => {
+        await Patient.findByIdAndUpdate(createdPatientId, {
+          patientStatus: "inactive",
+        });
+        await request(app).get(`/patients/${createdPatientId}`).expect(404);
+      });
+
+      test("Debería devolver 500 si el formato del ID de MongoDB es inválido", async () => {
+        const res = await request(app)
+          .get("/patients/id-no-valido")
+          .expect(500);
+        expect(res.body.msg).toContain("formato de ID inválido");
+      });
+    });
+
+    test("Debería devolver 404 si se busca un inexistente", async () => {
+      await request(app).get("/patients?fullName=Inexistente").expect(404);
+      await request(app).get("/patients?identificationNumber=Inexistente").expect(404);
+    });
   });
-  test("Deberia obtener un paciente mediante query string y su identificacion", async () => {
-    await request(app)
-      .get("/patients?identificationNumber=12345678A")
-      .expect(200);
+
+  describe("POST /patients", () => {
+    test("Debería crear un nuevo paciente", async () => {
+      const newPatient = {
+        ...firstPatient,
+        identificationNumber: "87654321X",
+        socialNumber: "social-nuevo",
+        clinicNumber: "clinic-nuevo",
+      };
+
+      const res = await request(app)
+        .post("/patients")
+        .send(newPatient)
+        .expect(201);
+
+      expect(res.body.identificationNumber).toBe("87654321X");
+    });
+
+    test("Debería REACTIVAR un paciente si ya existía como inactivo", async () => {
+      await Patient.findByIdAndUpdate(createdPatientId, {
+        patientStatus: "inactive",
+      });
+
+      const res = await request(app)
+        .post("/patients")
+        .send(firstPatient)
+        .expect(200);
+
+      expect(res.body.msg).toContain("reactivado");
+      expect(res.body.patient.patientStatus).toBe("active");
+    });
+
+    test("Debería dar error 409 si el paciente ya existe y está activo", async () => {
+      const res = await request(app)
+        .post("/patients")
+        .send(firstPatient)
+        .expect(409);
+    });
   });
-  test("Deberia devolver error de un paciente inexistente mediante query string y su identificacion", async () => {
-    await request(app)
-      .get("/patients?identificationNumber=1343fds")
-      .expect(404);
+
+  describe("PATCH /patients", () => {
+    test("Debería actualizar por ID si está activo", async () => {
+      const res = await request(app)
+        .patch(`/patients/${createdPatientId}`)
+        .send({ fullName: "Gabriel Editado" })
+        .expect(200);
+      expect(res.body.fullName).toBe("Gabriel Editado");
+    });
+
+    test("No debería actualizar un paciente inactivo", async () => {
+      await Patient.findByIdAndUpdate(createdPatientId, {
+        patientStatus: "inactive",
+      });
+
+      await request(app)
+        .patch(`/patients/${createdPatientId}`)
+        .send({ fullName: "Intento Fallido" })
+        .expect(404);
+    });
   });
-  test("Deberia obtener un paciente mediante parametro y su id de la base de datos", async () => {
-    await request(app).get("/patients/69f638a991ac348f6a762ea0").expect(200);
-  });
-  test("Deberia devolver error de un paciente inexistente mediante parametro y su id de la base de datos", async () => {
-    await request(app).get("/patients/69f638a991ac348f6a762ea6").expect(404);
-  });
-  test("Deberia devolver error de formato del id de la base de datos", async () => {
-    await request(app).get("/patients/52ew").expect(500);
+
+  describe("DELETE /patients", () => {
+    test("Debería marcar como inactivo por ID", async () => {
+      const res = await request(app)
+        .delete(`/patients/${createdPatientId}`)
+        .expect(200);
+
+      expect(res.body.msg).toContain("inactivo");
+
+      const search = await Patient.findById(createdPatientId);
+      expect(search?.patientStatus).toBe("inactive");
+    });
+
+    test("Debería dar 404 si el paciente ya estaba inactivo", async () => {
+      await Patient.findByIdAndUpdate(createdPatientId, {
+        patientStatus: "inactive",
+      });
+
+      await request(app).delete(`/patients/${createdPatientId}`).expect(404);
+    });
+
+    test("Debería dar 404 al intentar borrar un paciente inexistente por query", async () => {
+      await request(app)
+        .delete("/patients?identificationNumber=NONEXISTENT")
+        .expect(404);
+    });
   });
 });
