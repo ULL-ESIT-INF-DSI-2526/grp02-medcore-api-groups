@@ -1,5 +1,6 @@
 import { describe, test, beforeEach, expect } from "vitest";
 import request from "supertest";
+import mongoose from "mongoose";
 import { app } from "../src/app.js";
 import { Staff } from "../src/models/staff.js";
 import { IStaff } from "../src/interfaces/IStaff.js";
@@ -28,6 +29,18 @@ const staffMember2: IStaff = {
   officeOrWard: "Planta 2, Consulta 205",
   yearsOfExperience: 5,
   departmentContact: "ext. 5678",
+  status: "active"
+};
+
+const staffMember3: IStaff = {
+  fullName: "Dr. Carlos Ruiz Martínez",
+  collegiateNumber: "COL-11111",
+  specialty: Specialty.Cargiology,
+  category: Category.AttendingPhysician,
+  shift: Shift.Rotating,
+  officeOrWard: "Planta 1, Consulta 101",
+  yearsOfExperience: 8,
+  departmentContact: "ext. 1111",
   status: "active"
 };
 
@@ -138,4 +151,124 @@ describe("POST /staff", () => {
     expect(response.body.msg).toBe("Validation failed");
     expect(response.body.errors[0]).toContain("is not a valid professional category");
   });
+});
+
+describe("PATCH /staff", () => {
+  beforeEach(async () => {
+    await Staff.deleteMany({});
+    await Staff.create(staffMember1);
+    await Staff.create(staffMember2);
+    await Staff.create(staffMember3);
+  });
+
+  test("Debería actualizar un staff por nombre completo", async () => {
+    const partialUpdate = { officeOrWard: "Planta 10, Consulta 1000", yearsOfExperience: 20 };
+    const response = await request(app).patch(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .send(partialUpdate).expect(200);
+    expect(response.body.fullName).toBe(staffMember1.fullName);
+    expect(response.body.officeOrWard).toBe("Planta 10, Consulta 1000");
+    expect(response.body.yearsOfExperience).toBe(20);
+  });
+
+  test("Debería actualizar un staff por nombre parcial", async () => {
+    const partialUpdate = { departmentContact: "ext. 9999" };
+    const response = await request(app).patch("/staff?fullName=Manuel González")
+      .send(partialUpdate).expect(200);
+    expect(response.body.fullName).toBe(staffMember1.fullName);
+    expect(response.body.departmentContact).toBe("ext. 9999");
+  });
+
+  test("Debería devolver error 404 si el nombre no existe", async () => {
+    const response = await request(app).patch("/staff?fullName=Dr. No Existe")
+      .send({ officeOrWard: "Nueva Oficina" }).expect(404);
+    expect(response.body.msg).toBe("No staff member found with that name");
+  });
+
+  test("Debería actualizar todos los staff con una especialidad específica", async () => {
+    const partialUpdate = { shift: Shift.Night, departmentContact: "ext. 7777" };
+    const response = await request(app).patch("/staff?specialty=cardiología")
+      .send(partialUpdate).expect(200);
+    expect(response.body.updatedCount).toBe(2);
+    expect(response.body.msg).toContain("Updated 2 staff member(s)");
+    response.body.staff.forEach((staff: any) => {
+      expect(staff.shift).toBe(Shift.Night);
+      expect(staff.departmentContact).toBe("ext. 7777");
+    });
+  });
+
+  test("Debería devolver error 404 si la especialidad no tiene miembros", async () => {
+    const response = await request(app).patch("/staff?specialty=traumatología")
+      .send({ shift: Shift.Night }).expect(404);
+    expect(response.body.msg).toBe("No staff members found with that specialty");
+  });
+
+  test("Debería devolver error 400 si la especialidad no es válida", async () => {
+    const response = await request(app).patch("/staff?specialty=especialidad-invalida")
+      .send({ shift: Shift.Night }).expect(400);
+    expect(response.body.msg).toContain("Invalid specialty");
+  });
+
+  test("Debería devolver error 400 si se intenta modificar collegiateNumber por nombre", async () => {
+    const response = await request(app).patch(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
+      .send({ collegiateNumber: "COL-NUEVO" }).expect(400);
+    expect(response.body.msg).toBe("Cannot update fields: collegiateNumber");
+  });
+
+  test("Debería devolver error 400 si no se proporciona fullName ni specialty", async () => {
+    const response = await request(app).patch("/staff")
+      .send({ officeOrWard: "Nueva Oficina" }).expect(400);
+    expect(response.body.msg).toBe('Query parameter "fullName" or "specialty" is required for PATCH operation');
+  });
+});
+
+describe("PATCH /staff/:id", () => {
+  let staffId: string;
+  beforeEach(async () => {
+    await Staff.deleteMany({});
+    const created = await Staff.create(staffMember1);
+    staffId = created._id.toString();
+  });
+
+  test("Debería actualizar parcialmente un miembro del staff por ID", async () => {
+    const partialUpdate = {
+      fullName: "Dr. Manuel González Ávila Actualizado",
+      yearsOfExperience: 15,
+      officeOrWard: "Planta 5, Consulta 508"
+    };
+    const response = await request(app).patch(`/staff/${staffId}`)
+      .send(partialUpdate).expect(200);
+    expect(response.body.fullName).toBe("Dr. Manuel González Ávila Actualizado");
+    expect(response.body.yearsOfExperience).toBe(15);
+    expect(response.body.officeOrWard).toBe("Planta 5, Consulta 508");
+    expect(response.body.collegiateNumber).toBe(staffMember1.collegiateNumber);
+    expect(response.body.specialty).toBe(staffMember1.specialty);
+  });
+
+  test("Debería devolver error 400 si el ID tiene formato inválido", async () => {
+    const response = await request(app).patch("/staff/52ew")
+      .send({ fullName: "Nuevo Nombre" }).expect(400);
+    expect(response.body.msg).toBe("Invalid ID format");
+  });
+
+  test("Debería devolver error 404 si el staff no existe", async () => {
+    const fakeId = new mongoose.Types.ObjectId().toString();
+    const response = await request(app).patch(`/staff/${fakeId}`)
+      .send({ fullName: "Nuevo Nombre" }).expect(404);
+    expect(response.body.msg).toBe("Staff member not found");
+  });
+
+  test("Debería devolver error 400 si se intenta modificar el collegiateNumber", async () => {
+    const response = await request(app).patch(`/staff/${staffId}`)
+      .send({ collegiateNumber: "COL-NUEVO" }).expect(400);
+    expect(response.body.msg).toBe("Cannot update fields: collegiateNumber");
+  });
+
+  test("Debería devolver error 400 si se actualiza con una especialidad inválida", async () => {
+    const response = await request(app).patch(`/staff/${staffId}`)
+      .send({ specialty: "especialidad-falsa" }).expect(400);
+    expect(response.body.msg).toBe("Validation failed");
+    expect(response.body.errors[0]).toContain("is not a valid specialty");
+  });
+
+
 });

@@ -1,6 +1,7 @@
 import express from "express";
 import { Staff } from "../models/staff.js";
 import { Specialty } from "../enums/StaffSpecialty.js";
+import { spec } from "node:test/reporters";
 
 export const staffRouter = express.Router();
 
@@ -68,5 +69,94 @@ staffRouter.post('/staff', async (req, res) => {
       return res.status(400).send({ msg: 'Validation failed', errors });
     }
     return res.status(500).send({ msg: "Error creating staff member" });
+  }
+});
+
+const NON_UPDATABLE_FIELDS = ['collegiateNumber', '_id', 'createdAt', 'specialty', 'category'];
+
+staffRouter.patch('/staff', async (req, res) => {
+  try {
+    const { fullName, specialty } = req.query;
+    const updateData = { ...req.body };
+    const forbiddenUpdates = NON_UPDATABLE_FIELDS.filter(field => updateData[field] !== undefined);
+    if (forbiddenUpdates.length > 0) {
+      return res.status(400).send({
+        msg: `Cannot update fields: ${forbiddenUpdates.join(', ')}`
+      });
+    }
+
+    if (fullName) {
+      const nameToSearch = fullName.toString();
+      const updatedStaff = await Staff.findOneAndUpdate(
+        { fullName: { $regex: nameToSearch, $options: 'i' }},
+        updateData,
+        { new: true, runValidators: true, context: 'query'}
+      );
+      if (!updatedStaff) {
+        return res.status(404).send({ msg: 'No staff member found with that name'});
+      }
+      return res.status(200).send(updatedStaff);
+    }
+
+    if (specialty) {
+      const specialtyToSearch = specialty.toString();
+      const validSpecialties = Object.values(Specialty);
+      if (!validSpecialties.includes(specialtyToSearch as Specialty)) {
+        return res.status(400).send({ msg: `Invalid specialty. Allowed values: ${validSpecialties.join(', ')}`});
+      }
+      const updatedStaff = await Staff.updateMany(
+        { specialty: specialtyToSearch },
+        updateData,
+        { runValidators: true, context: 'query'}
+      );
+      if (updatedStaff.matchedCount === 0) {
+        return res.status(404).send({ msg: 'No staff members found with that specialty'});
+      }
+      const updatedDocuments = await Staff.find({ specialty: specialtyToSearch, isDeleted: false });
+      return res.status(200).send({
+        msg: `Updated ${updatedStaff.modifiedCount} staff member(s)`,
+        updatedCount: updatedStaff.modifiedCount,
+        staff: updatedDocuments
+      });
+    }
+    return res.status(400).send({ msg: 'Query parameter "fullName" or "specialty" is required for PATCH operation'});
+  } catch (error: any) {
+    return res.status(500).send({ msg: "Error updating staff member" });
+  }
+});
+
+staffRouter.patch("/staff/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).send({ msg: "Invalid ID format" });
+    }
+    const updateData = { ...req.body };
+    const NON_UPDATABLE_FIELDS = ['collegiateNumber', '_id', 'createdAt', 'isDeleted', 'deletedAt'];
+    const forbiddenUpdates = NON_UPDATABLE_FIELDS.filter(field => updateData[field] !== undefined);
+    if (forbiddenUpdates.length > 0) {
+      return res.status(400).send({ 
+        msg: `Cannot update fields: ${forbiddenUpdates.join(', ')}` 
+      });
+    }
+    
+    const existingStaff = await Staff.findById(id);
+    if (!existingStaff) {
+      return res.status(404).send({ msg: "Staff member not found" });
+    }
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        (existingStaff as any)[key] = updateData[key];
+      }
+    });
+    await existingStaff.save();
+    
+    return res.status(200).send(existingStaff);
+  } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).send({ msg: "Validation failed", errors });
+    }
+    return res.status(500).send({ msg: "Error updating staff member" });
   }
 });
