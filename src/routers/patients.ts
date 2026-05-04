@@ -1,5 +1,6 @@
 import express from "express";
 import { Patient } from "../models/PatientModel.js";
+import { IPatient } from "../interfaces/IPatient.js";
 
 export const patientRouter = express.Router();
 
@@ -7,7 +8,7 @@ patientRouter.get("/patients", async (req, res) => {
   try {
     const { fullName, identificationNumber, status } = req.query;
 
-    const queryFilter: any = {
+    const queryFilter: Partial<IPatient> & { patientStatus: string } = {
       patientStatus: status === "inactive" ? "inactive" : "active",
     };
 
@@ -90,41 +91,59 @@ patientRouter.post("/patients", async (req, res) => {
 patientRouter.patch("/patients", async (req, res) => {
   try {
     const { identificationNumber } = req.query;
-    if (!identificationNumber)
+    if (!identificationNumber) {
       return res.status(400).send({ msg: "ID number required" });
+    }
+
+    const { patientStatus, _id, ...updateData } = req.body;
 
     const updatedPatient = await Patient.findOneAndUpdate(
       {
         identificationNumber: identificationNumber.toString(),
         patientStatus: "active",
       },
-      req.body,
+      updateData,
       { new: true, runValidators: true },
     );
 
-    if (!updatedPatient)
+    if (!updatedPatient) {
       return res
         .status(404)
-        .send({ msg: "Patient to modify not found" });
+        .send({ msg: "Patient to modify not found or is inactive" });
+    }
+
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error updating" });
+    return res
+      .status(400)
+      .send({ msg: "Error updating patient: validation failed", error });
   }
 });
 
 patientRouter.patch("/patients/:id", async (req, res) => {
   try {
+    const { patientStatus, _id, ...updateData } = req.body;
+
     const updatedPatient = await Patient.findOneAndUpdate(
-      { _id: req.params.id, patientStatus: "active" },
-      req.body,
+      {
+        _id: req.params.id,
+        patientStatus: "active",
+      },
+      updateData,
       { new: true, runValidators: true },
     );
 
-    if (!updatedPatient)
-      return res.status(404).send({ msg: "Patient not found or has inactive status" });
+    if (!updatedPatient) {
+      return res
+        .status(404)
+        .send({ msg: "Patient not found or has inactive status" });
+    }
+
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error updating by ID" });
+    return res
+      .status(500)
+      .send({ msg: "Error updating by ID: database or format error" });
   }
 });
 
