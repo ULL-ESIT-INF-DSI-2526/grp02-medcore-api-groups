@@ -100,23 +100,19 @@ patientRouter.patch("/patients", async (req, res) => {
     const updatedPatient = await Patient.findOneAndUpdate(
       {
         identificationNumber: identificationNumber.toString(),
-        patientStatus: "active",
+        patientStatus: "active", 
       },
       updateData,
       { new: true, runValidators: true },
     );
 
     if (!updatedPatient) {
-      return res
-        .status(404)
-        .send({ msg: "Patient to modify not found or is inactive" });
+      return res.status(404).send({ msg: "Patient to modify not found or is inactive" });
     }
 
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res
-      .status(400)
-      .send({ msg: "Error updating patient: validation failed", error });
+    return res.status(400).send({ msg: "Error updating patient: validation failed", error });
   }
 });
 
@@ -125,25 +121,21 @@ patientRouter.patch("/patients/:id", async (req, res) => {
     const { patientStatus, _id, ...updateData } = req.body;
 
     const updatedPatient = await Patient.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        patientStatus: "active",
+      { 
+        _id: req.params.id, 
+        patientStatus: "active" 
       },
       updateData,
       { new: true, runValidators: true },
     );
 
     if (!updatedPatient) {
-      return res
-        .status(404)
-        .send({ msg: "Patient not found or has inactive status" });
+      return res.status(404).send({ msg: "Patient not found or has inactive status" });
     }
 
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res
-      .status(500)
-      .send({ msg: "Error updating by ID: database or format error" });
+    return res.status(500).send({ msg: "Error updating by ID: database or format error" });
   }
 });
 

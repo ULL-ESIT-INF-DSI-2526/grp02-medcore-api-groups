@@ -22,6 +22,50 @@ const firstPatient: IPatient = {
   patientStatus: "active",
 };
 
+describe("Validaciones del Modelo Patient", () => {
+  test("Debería fallar si no tiene ni socialNumber ni clinicNumber, middleware", async () => {
+    const errorPatient: IPatient = {
+      fullName: "Gabriel Martin Broock",
+      identificationNumber: "12345678A",
+      birthDate: "2004-05-20",
+      socialNumber: null,
+      clinicNumber: null,
+      genre: "male",
+      contactData: {
+        address: "calle numero 3",
+        phone: "644430413",
+        email: "alu0101539157@ull.edu.es",
+      },
+      alergies: ["celiaquia"],
+      bloodGroup: BloodGroup.APositive,
+      patientStatus: "active",
+    };
+
+    const patient = new Patient(errorPatient);
+    await expect(patient.save()).rejects.toThrow(
+      "At least one ID, social or clinic, is required",
+    );
+  });
+
+  test("Debería fallar si el email es inválido", async () => {
+    const invalidPatient = {
+      ...firstPatient,
+      contactData: { ...firstPatient.contactData, email: "correo-invalido" },
+    };
+    const patient = new Patient(invalidPatient);
+    await expect(patient.save()).rejects.toThrow("Email is invalid");
+  });
+
+  test("Debería fallar si el teléfono es inválido", async () => {
+    const invalidPatient = {
+      ...firstPatient,
+      contactData: { ...firstPatient.contactData, phone: "123" },
+    };
+    const patient = new Patient(invalidPatient);
+    await expect(patient.save()).rejects.toThrow("Phone number is invalid");
+  });
+});
+
 describe("Pruebas del API de Pacientes", () => {
   let createdPatientId: string;
   let createdPatientname: string;
@@ -127,11 +171,21 @@ describe("Pruebas del API de Pacientes", () => {
 
     test("Debería devolver 404 si se busca un inexistente", async () => {
       await request(app).get("/patients?fullName=Inexistente").expect(404);
-      await request(app).get("/patients?identificationNumber=Inexistente").expect(404);
+      await request(app)
+        .get("/patients?identificationNumber=Inexistente")
+        .expect(404);
     });
   });
 
   describe("POST /patients", () => {
+    test("Debería entrar en el catch de POST /patients si ocurre un error inesperado", async () => {
+      const res = await request(app)
+        .post("/patients")
+        .send({ identificationNumber: ["No", "Permitido"] })
+        .expect(400);
+
+      expect(res.body.msg).toBe("Error setting active status");
+    });
     test("Debería crear un nuevo paciente", async () => {
       const newPatient = {
         ...firstPatient,
@@ -148,7 +202,7 @@ describe("Pruebas del API de Pacientes", () => {
       expect(res.body.identificationNumber).toBe("87654321X");
     });
 
-    test("Debería REACTIVAR un paciente si ya existía como inactivo", async () => {
+    test("Debería reactivar un paciente si ya existía como inactivo", async () => {
       await Patient.findByIdAndUpdate(createdPatientId, {
         patientStatus: "inactive",
       });
@@ -170,24 +224,78 @@ describe("Pruebas del API de Pacientes", () => {
     });
   });
 
-  describe("PATCH /patients", () => {
-    test("Debería actualizar por ID si está activo", async () => {
+  describe("PATCH /patients (por Query String)", () => {
+    
+    test("Debería actualizar un paciente usando identificationNumber en la query", async () => {
       const res = await request(app)
-        .patch(`/patients/${createdPatientId}`)
-        .send({ fullName: "Gabriel Editado" })
+        .patch(
+          `/patients?identificationNumber=${firstPatient.identificationNumber}`,
+        )
+        .send({ fullName: "Nombre Actualizado por Query" })
         .expect(200);
-      expect(res.body.fullName).toBe("Gabriel Editado");
+
+      expect(res.body.fullName).toBe("Nombre Actualizado por Query");
     });
 
-    test("No debería actualizar un paciente inactivo", async () => {
-      await Patient.findByIdAndUpdate(createdPatientId, {
-        patientStatus: "inactive",
-      });
-
+    test("Debería devolver 400 si no se proporciona identificationNumber en la query", async () => {
       await request(app)
-        .patch(`/patients/${createdPatientId}`)
-        .send({ fullName: "Intento Fallido" })
+        .patch("/patients")
+        .send({ fullName: "Test" })
+        .expect(400);
+    });
+
+    test("Debería devolver 404 si el paciente buscado por DNI no existe o está inactivo", async () => {
+      await request(app)
+        .patch("/patients?identificationNumber=INEXISTENTE")
+        .send({ fullName: "Test" })
         .expect(404);
+    });
+
+    test("Debería devolver 400 si los datos enviados fallan la validación", async () => {
+      await request(app)
+        .patch(
+          `/patients?identificationNumber=${firstPatient.identificationNumber}`,
+        )
+        .send({ fullName: "G" })
+        .expect(400);
+    });
+  });
+
+  describe("PATCH /patients/:id (por ID de MongoDB)", () => {
+    test("Debería actualizar los datos de un paciente activo usando su ID", async () => {
+      const res = await request(app)
+        .patch(`/patients/${createdPatientId}`)
+        .send({ fullName: "Nombre Editado por ID" })
+        .expect(200);
+
+      expect(res.body.fullName).toBe("Nombre Editado por ID");
+    });
+
+    test("Debería devolver 404 si el ID no existe o el paciente está inactivo", async () => {
+      const fakeId = "645a1b2c3d4e5f6a7b8c9d0e";
+      await request(app)
+        .patch(`/patients/${fakeId}`)
+        .send({ fullName: "Test" })
+        .expect(404);
+    });
+
+    test("Debería devolver 500 en el catch si el formato del ID es inválido", async () => {
+      const res = await request(app)
+        .patch("/patients/no-valido")
+        .send({ fullName: "Test" })
+        .expect(500);
+
+      expect(res.body.msg).toContain("Error updating by ID");
+    });
+
+    test("Debería ignorar campos protegidos como patientStatus o id si vienen en el body", async () => {
+      const res = await request(app)
+        .patch(`/patients/${createdPatientId}`)
+        .send({ patientStatus: "inactive", fullName: "testing error" })
+        .expect(200);
+
+      expect(res.body.fullName).toBe("testing error");
+      expect(res.body.patientStatus).toBe("active");
     });
   });
 
@@ -215,6 +323,49 @@ describe("Pruebas del API de Pacientes", () => {
       await request(app)
         .delete("/patients?identificationNumber=NONEXISTENT")
         .expect(404);
+    });
+
+    test("Debería marcar como inactivo por Query String (DNI)", async () => {
+      const res = await request(app)
+        .delete(
+          `/patients?identificationNumber=${firstPatient.identificationNumber}`,
+        )
+        .expect(200);
+
+      expect(res.body.patient.patientStatus).toBe("inactive");
+      expect(res.body.msg).toContain("inactive");
+
+      const search = await Patient.findOne({
+        identificationNumber: firstPatient.identificationNumber,
+      });
+      expect(search?.patientStatus).toBe("inactive");
+    });
+
+    test("Debería devolver 400 si se intenta borrar por query sin enviar el identificationNumber", async () => {
+      const res = await request(app).delete("/patients").expect(400);
+
+      expect(res.body.msg).toBe("Patient missing to delete");
+    });
+
+    test("Debería entrar en el bloque 404 si el paciente no existe o ya está inactivo (Query)", async () => {
+      await request(app)
+        .delete("/patients?identificationNumber=99999999Z")
+        .expect(404);
+
+      await Patient.findOneAndUpdate(
+        { identificationNumber: firstPatient.identificationNumber },
+        { patientStatus: "inactive" },
+      );
+
+      const res = await request(app)
+        .delete(
+          `/patients?identificationNumber=${firstPatient.identificationNumber}`,
+        )
+        .expect(404);
+
+      expect(res.body.msg).toBe(
+        "Patient not found or already has inactive status",
+      );
     });
   });
 });

@@ -17,4 +17,5 @@ export interface IPatient {
   alergies: string[]
   bloodGroup: BloodGroup
   patientStatus: PatientStatus
+  age?: number
 }
