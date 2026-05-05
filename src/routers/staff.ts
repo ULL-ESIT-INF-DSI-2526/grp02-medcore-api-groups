@@ -64,7 +64,10 @@ staffRouter.post('/staff', async (req, res) => {
     const { collegiateNumber } = req.body;
     const existingStaff = await Staff.findOne({ collegiateNumber });
     if (existingStaff) {
-      return res.status(409).send({ msg: 'Collegiate number already exists' });
+      existingStaff.status = 'active';
+      await existingStaff.save();
+      return res.status(200).send({ 
+        msg: 'Staff member already exists. Status changed from "deleted" to "active"'});
     }
     const newStaff = new Staff(req.body);
     await newStaff.save();

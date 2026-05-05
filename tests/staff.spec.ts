@@ -132,12 +132,16 @@ describe("POST /staff", () => {
     expect(response.body.updatedAt).toBeDefined();
   });
 
-  test("Debería devolver error 409 si el número de colegiado ya existía", async () => {
-    await request(app).post("/staff").send(staffMember1).expect(201);
-    const duplicateStaff = { ...staffMember2, collegiateNumber: staffMember1.collegiateNumber };
-    const response = await request(app).post("/staff").send(duplicateStaff).expect(409);
-    expect(response.body.msg).toBe("Collegiate number already exists");
-  });
+  test("Debería reactivar un staff que existe con status 'deleted'", async () => {
+      const createdStaff = await Staff.create(staffMember1);
+      createdStaff.status = 'deleted';
+      await createdStaff.save();
+      const response = await request(app).post("/staff")
+        .send(staffMember1).expect(200);
+      expect(response.body.msg).toBe('Staff member already exists. Status changed from "deleted" to "active"');
+      const updatedStaff = await Staff.findOne({ collegiateNumber: staffMember1.collegiateNumber });
+      expect(updatedStaff?.status).toBe('active');
+    });
 
   test("Debería devolver error 400 si falta un campo requerido", async () => {
     const invalidStaff = { fullName: "Dr. Incompleto" };
