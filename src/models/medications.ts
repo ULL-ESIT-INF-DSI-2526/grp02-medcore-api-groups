@@ -1,22 +1,7 @@
 import { Document, Schema, model } from 'mongoose';
+import { PharmaFormType} from '../types/metications.js'
+import { AdminRouteType} from '../types/metications.js'
 
-export type PharmaFormType =
-  | 'comprimido'
-  | 'cápsula'
-  | 'solución oral'
-  | 'solución inyectable'
-  | 'pomada'
-  | 'parche transdérmico'
-  | 'inhalador'
-  | 'otra';
-
-export type AdminRouteType =
-  | 'oral'
-  | 'intravenosa'
-  | 'intramuscular'
-  | 'subcutánea'
-  | 'tópica'
-  | 'inhalatoria';
 
 export interface MedicationDocumentInterface extends Document {
   commercialName: string;
