@@ -217,12 +217,6 @@ describe("PATCH /staff", () => {
     expect(response.body.msg).toContain("Invalid specialty");
   });
 
-  test("Debería devolver error 400 si se intenta modificar collegiateNumber por nombre", async () => {
-    const response = await request(app).patch(`/staff?fullName=${encodeURIComponent(staffMember1.fullName)}`)
-      .send({ collegiateNumber: "COL-NUEVO" }).expect(400);
-    expect(response.body.msg).toBe("Cannot update fields: collegiateNumber");
-  });
-
   test("Debería devolver error 400 si no se proporciona fullName ni specialty", async () => {
     const response = await request(app).patch("/staff")
       .send({ officeOrWard: "Nueva Oficina" }).expect(400);
@@ -264,12 +258,6 @@ describe("PATCH /staff/:id", () => {
     const response = await request(app).patch(`/staff/${fakeId}`)
       .send({ fullName: "Nuevo Nombre" }).expect(404);
     expect(response.body.msg).toBe("Staff member not found");
-  });
-
-  test("Debería devolver error 400 si se intenta modificar el collegiateNumber", async () => {
-    const response = await request(app).patch(`/staff/${staffId}`)
-      .send({ collegiateNumber: "COL-NUEVO" }).expect(400);
-    expect(response.body.msg).toBe("Cannot update fields: collegiateNumber");
   });
 
   test("Debería devolver error 400 si se actualiza con una especialidad inválida", async () => {

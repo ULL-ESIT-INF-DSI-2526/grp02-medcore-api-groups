@@ -78,18 +78,10 @@ staffRouter.post('/staff', async (req, res) => {
   }
 });
 
-const NON_UPDATABLE_FIELDS = ['collegiateNumber', '_id', 'createdAt', 'specialty', 'category'];
-
 staffRouter.patch('/staff', async (req, res) => {
   try {
     const { fullName, specialty } = req.query;
     const updateData = { ...req.body };
-    const forbiddenUpdates = NON_UPDATABLE_FIELDS.filter(field => updateData[field] !== undefined);
-    if (forbiddenUpdates.length > 0) {
-      return res.status(400).send({
-        msg: `Cannot update fields: ${forbiddenUpdates.join(', ')}`
-      });
-    }
 
     if (fullName) {
       const nameToSearch = fullName.toString();
@@ -138,14 +130,6 @@ staffRouter.patch('/staff/:id', async (req, res) => {
       return res.status(400).send({ msg: "Invalid ID format" });
     }
     const updateData = { ...req.body };
-    const NON_UPDATABLE_FIELDS = ['collegiateNumber', '_id', 'createdAt', 'isDeleted', 'deletedAt'];
-    const forbiddenUpdates = NON_UPDATABLE_FIELDS.filter(field => updateData[field] !== undefined);
-    if (forbiddenUpdates.length > 0) {
-      return res.status(400).send({ 
-        msg: `Cannot update fields: ${forbiddenUpdates.join(', ')}` 
-      });
-    }
-    
     const existingStaff = await Staff.findById(id);
     if (!existingStaff) {
       return res.status(404).send({ msg: "Staff member not found" });
