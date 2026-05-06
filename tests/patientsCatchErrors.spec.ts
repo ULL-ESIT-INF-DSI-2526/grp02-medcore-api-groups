@@ -49,7 +49,7 @@ describe("Patient Errores Catch", () => {
       const response = await request(app)
         .post("/patients")
         .send({ identificationNumber: "12345" })
-        .expect(400);
+        .expect(500);
 
       expect(response.body.msg).toBe("Error setting active status");
     });

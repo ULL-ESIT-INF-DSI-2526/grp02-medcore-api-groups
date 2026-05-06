@@ -58,9 +58,16 @@ patientRouter.get("/patients/:id", async (req, res) => {
 
 patientRouter.post("/patients", async (req, res) => {
   try {
-    const { identificationNumber } = req.body;
+    const { identificationNumber, fullName } = req.body;
 
-    const existing = await Patient.findOne({ identificationNumber });
+    const queryFilter: Partial<IPatient> = {};
+    if (identificationNumber) {
+      queryFilter.identificationNumber = identificationNumber.toString();
+    } else if (fullName) {
+      queryFilter.fullName = fullName.toString();
+    }
+
+    const existing = await Patient.findOne(queryFilter);
 
     if (existing) {
       if (existing.patientStatus === "inactive") {
@@ -74,7 +81,6 @@ patientRouter.post("/patients", async (req, res) => {
           patient: reactivated,
         });
       }
-
       return res
         .status(409)
         .send({ msg: "Patient already exists and has active status" });
@@ -84,35 +90,38 @@ patientRouter.post("/patients", async (req, res) => {
     await patient.save();
     return res.status(201).send(patient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error setting active status", error });
+    return res.status(500).send({ msg: "Error setting active status", error });
   }
 });
 
 patientRouter.patch("/patients", async (req, res) => {
   try {
-    const { identificationNumber } = req.query;
-    if (!identificationNumber) {
-      return res.status(400).send({ msg: "ID number required" });
-    }
+    const { fullName, identificationNumber } = req.query;
 
     const { patientStatus, _id, ...updateData } = req.body;
 
-    const updatedPatient = await Patient.findOneAndUpdate(
-      {
-        identificationNumber: identificationNumber.toString(),
-        patientStatus: "active", 
-      },
-      updateData,
-      { new: true, runValidators: true },
-    );
+    if (identificationNumber) {
+      const updatedPatient = await Patient.findOneAndUpdate(
+        {
+          identificationNumber: identificationNumber.toString(),
+          patientStatus: "active",
+        },
+        updateData,
+        { new: true, runValidators: true },
+      );
 
-    if (!updatedPatient) {
-      return res.status(404).send({ msg: "Patient to modify not found or is inactive" });
+      if (!updatedPatient) {
+        return res
+          .status(404)
+          .send({ msg: "Patient to modify not found or is inactive" });
+      }
+
+      return res.status(200).send(updatedPatient);
     }
-
-    return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(400).send({ msg: "Error updating patient: validation failed", error });
+    return res
+      .status(400)
+      .send({ msg: "Error updating patient: validation failed", error });
   }
 });
 
@@ -121,46 +130,62 @@ patientRouter.patch("/patients/:id", async (req, res) => {
     const { patientStatus, _id, ...updateData } = req.body;
 
     const updatedPatient = await Patient.findOneAndUpdate(
-      { 
-        _id: req.params.id, 
-        patientStatus: "active" 
+      {
+        _id: req.params.id,
+        patientStatus: "active",
       },
       updateData,
       { new: true, runValidators: true },
     );
 
     if (!updatedPatient) {
-      return res.status(404).send({ msg: "Patient not found or has inactive status" });
+      return res
+        .status(404)
+        .send({ msg: "Patient not found or has inactive status" });
     }
 
     return res.status(200).send(updatedPatient);
   } catch (error) {
-    return res.status(500).send({ msg: "Error updating by ID: database or format error" });
+    return res
+      .status(500)
+      .send({ msg: "Error updating by ID: database or format error" });
   }
 });
 
 patientRouter.delete("/patients", async (req, res) => {
   try {
-    const { identificationNumber } = req.query;
-    if (!identificationNumber)
-      return res.status(400).send({ msg: "Patient missing to delete" });
+    const { identificationNumber, fullName } = req.query;
+
+    if (!identificationNumber && !fullName) {
+      return res.status(400).send({ msg: "Identification number or full name required to delete" });
+    }
+
+    const queryFilter: Partial<IPatient> = { 
+      patientStatus: "active" 
+    };
+
+    if (identificationNumber) {
+      queryFilter.identificationNumber = identificationNumber.toString();
+    } else if (fullName) {
+      queryFilter.fullName = fullName.toString();
+    }
 
     const patient = await Patient.findOneAndUpdate(
-      {
-        identificationNumber: identificationNumber.toString(),
-        patientStatus: "active",
-      },
+      queryFilter,
       { patientStatus: "inactive" },
       { new: true },
     );
 
-    if (!patient)
+    if (!patient) {
       return res
         .status(404)
         .send({ msg: "Patient not found or already has inactive status" });
-    return res
-      .status(200)
-      .send({ msg: "Patient status set to inactive succesfully", patient });
+    }
+
+    return res.status(200).send({ 
+      msg: "Patient status set to inactive succesfully", 
+      patient 
+    });
   } catch (error) {
     return res.status(500).send({ msg: "Error setting inactive status" });
   }

@@ -110,7 +110,7 @@ const PatientSchema = new Schema<PatientDocumentInterface>({
     required: true,
     default: "active",
     enum: {
-      values: ["active", "on leave", "deceased"],
+      values: ["active", "on leave", "deceased", "inactive"],
       message: "{VALUE} is not a valid status",
     },
   },
