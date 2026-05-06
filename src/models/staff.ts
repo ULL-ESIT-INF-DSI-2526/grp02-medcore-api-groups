@@ -1,4 +1,4 @@
-import { Document, Schema, model } from "mongoose";
+import { Document, Schema, model, models } from "mongoose";
 import { IStaff } from "../interfaces/IStaff.js";
 import { Specialty } from "../enums/StaffSpecialty.js";
 import { Category } from "../enums/StaffCategory.js";
@@ -90,4 +90,4 @@ const StaffSchema = new Schema<IStaff>(
 );
 
 /** Modelo Staff de Mongoose para la gestión de los miembros del personal */
-export const Staff = model<IStaff>('Staff', StaffSchema);
+export const Staff = models.Staff || model<IStaff>('Staff', StaffSchema);
