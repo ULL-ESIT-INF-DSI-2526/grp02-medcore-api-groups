@@ -1,4 +1,4 @@
-import { Document, Schema, model } from "mongoose";
+import { Document, Schema, model, models } from "mongoose";
 import validator from "validator";
 import { IPatient } from "../interfaces/IPatient.js";
 import { BloodGroup } from "../enums/BloodGroups.js";
@@ -153,7 +153,7 @@ PatientSchema.pre("validate", function (next) {
  * Modelo Paciente de Mongoose para la gestion de pacientes
  * Incluye validaciones para IDs
  */
-export const Patient = model<PatientDocumentInterface>(
+export const Patient = models.Patient || model<PatientDocumentInterface>(
   "Patient",
   PatientSchema,
 );

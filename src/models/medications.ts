@@ -1,4 +1,4 @@
-import { Document, Schema, model } from 'mongoose';
+import { Document, Schema, model, models } from 'mongoose';
 import { PharmaFormType, AdminRouteType } from '../types/medications.js';
 
 export interface MedicationDocumentInterface extends Document {
@@ -106,4 +106,4 @@ const MedicationSchema = new Schema<MedicationDocumentInterface>({
   },
 });
 
-export const Medication = model<MedicationDocumentInterface>('Medication', MedicationSchema);
+export const Medication = models.Medication || model<MedicationDocumentInterface>('Medication', MedicationSchema);
