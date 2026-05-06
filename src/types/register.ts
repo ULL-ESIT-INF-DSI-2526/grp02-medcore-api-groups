@@ -1,0 +1,1 @@
+export type RegisterType = "ambulatory consult" | "hospital admission"
