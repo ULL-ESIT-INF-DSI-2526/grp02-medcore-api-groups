@@ -18,158 +18,294 @@ const firstMedication = {
   contraindications: ["úlcera gástrica"],
 };
 
-beforeEach(async () => {
-  await Medication.deleteMany();
-  await new Medication(firstMedication).save();
-});
+describe("Medication API", () => {
+  let createdMedicationId: string;
 
-describe("POST /medications", () => {
-  test("Debería crear un medicamento correctamente", async () => {
-    const response = await request(app)
-      .post("/medications")
-      .send({
-        commercialName: "Paracetamol Stada",
-        activeIngredient: "Paracetamol",
-        nationalCode: "111222",
-        pharmaForm: "comprimido",
-        standardDose: 500,
-        doseUnit: "mg",
-        adminRoute: "oral",
-        stock: 200,
-        pricePerUnit: 0.3,
-        requiresPrescription: false,
-        expiryDate: new Date("2026-12-01"),
-        contraindications: [],
-      })
-      .expect(201);
+  beforeEach(async () => {
+    await Medication.deleteMany({});
+    const med = await Medication.create(firstMedication);
+    createdMedicationId = med._id.toString();
+  });
 
-    expect(response.body).to.include({
-      commercialName: "Paracetamol Stada",
-      nationalCode: "111222",
+  describe("POST /medications", () => {
+    test("Should successfully create a medication", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send({
+          commercialName: "Paracetamol Stada",
+          activeIngredient: "Paracetamol",
+          nationalCode: "111222",
+          pharmaForm: "comprimido",
+          standardDose: 500,
+          doseUnit: "mg",
+          adminRoute: "oral",
+          stock: 200,
+          pricePerUnit: 0.3,
+          requiresPrescription: false,
+          expiryDate: new Date("2026-12-01"),
+          contraindications: [],
+        })
+        .expect(201);
+
+      expect(res.body.commercialName).toBe("Paracetamol Stada");
+      expect(res.body.nationalCode).toBe("111222");
+      expect(res.body.stock).toBe(200);
+
+      const saved = await Medication.findById(res.body._id);
+      expect(saved).not.toBe(null);
+      expect(saved!.activeIngredient).toBe("Paracetamol");
+    });
+
+    test("Should return 400 with duplicate nationalCode", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send(firstMedication)
+        .expect(400);
+      expect(res.body).toHaveProperty("error");
+    });
+
+    test("Should return 400 with missing required fields", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send({ commercialName: "Incomplete" })
+        .expect(400);
+      expect(res.body).toHaveProperty("error");
+    });
+
+    test("Should return 400 with invalid pharmaForm", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send({ ...firstMedication, nationalCode: "999888", pharmaForm: "jarabe" })
+        .expect(400);
+      expect(res.body).toHaveProperty("error");
+    });
+
+    test("Should return 400 with negative stock", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send({ ...firstMedication, nationalCode: "999777", stock: -5 })
+        .expect(400);
+      expect(res.body).toHaveProperty("error");
+    });
+
+    test("Should return 400 with expired expiryDate", async () => {
+      const res = await request(app)
+        .post("/medications")
+        .send({ ...firstMedication, nationalCode: "999666", expiryDate: new Date("2020-01-01") })
+        .expect(400);
+      expect(res.body).toHaveProperty("error");
     });
   });
 
-  test("Debería devolver error al crear un medicamento con nationalCode duplicado", async () => {
-    await request(app).post("/medications").send(firstMedication).expect(400);
+  describe("GET /medications", () => {
+    describe("Search by query string", () => {
+      test("Should find medication by commercialName", async () => {
+        const res = await request(app)
+          .get("/medications?commercialName=Ibuprofeno Kern")
+          .expect(200);
+        expect(res.body[0].nationalCode).toBe("654321");
+      });
+
+      test("Should find medication by activeIngredient", async () => {
+        const res = await request(app)
+          .get("/medications?activeIngredient=Ibuprofeno")
+          .expect(200);
+        expect(res.body[0].commercialName).toBe("Ibuprofeno Kern");
+      });
+
+      test("Should find medication by nationalCode", async () => {
+        const res = await request(app)
+          .get("/medications?nationalCode=654321")
+          .expect(200);
+        expect(res.body[0].activeIngredient).toBe("Ibuprofeno");
+      });
+
+      test("Should return 404 if medication not found", async () => {
+        const res = await request(app)
+          .get("/medications?nationalCode=999999")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
+
+    describe("Search by database ID", () => {
+      test("Should find medication by id", async () => {
+        const res = await request(app)
+          .get(`/medications/${createdMedicationId}`)
+          .expect(200);
+        expect(res.body._id).toBe(createdMedicationId);
+        expect(res.body.nationalCode).toBe("654321");
+      });
+
+      test("Should return 404 if id does not exist", async () => {
+        const res = await request(app)
+          .get("/medications/000000000000000000000000")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 500 with invalid id format", async () => {
+        const res = await request(app)
+          .get("/medications/invalidformat")
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
   });
 
-  test("Debería devolver error al crear un medicamento con datos inválidos", async () => {
-    await request(app)
-      .post("/medications")
-      .send({ commercialName: "Incompleto" })
-      .expect(400);
-  });
-});
+  describe("PATCH /medications", () => {
+    describe("Update by query string", () => {
+      test("Should update medication by nationalCode", async () => {
+        const res = await request(app)
+          .patch("/medications?nationalCode=654321")
+          .send({ stock: 50 })
+          .expect(200);
+        expect(res.body.stock).toBe(50);
+      });
 
-describe("GET /medications", () => {
-  test("Debería obtener un medicamento por commercialName", async () => {
-    await request(app)
-      .get("/medications?commercialName=Ibuprofeno Kern")
-      .expect(200);
-  });
+      test("Should update medication by commercialName", async () => {
+        const res = await request(app)
+          .patch("/medications?commercialName=Ibuprofeno Kern")
+          .send({ stock: 30 })
+          .expect(200);
+        expect(res.body.stock).toBe(30);
+      });
 
-  test("Debería obtener un medicamento por activeIngredient", async () => {
-    await request(app)
-      .get("/medications?activeIngredient=Ibuprofeno")
-      .expect(200);
-  });
+      test("Should update medication by activeIngredient", async () => {
+        const res = await request(app)
+          .patch("/medications?activeIngredient=Ibuprofeno")
+          .send({ stock: 20 })
+          .expect(200);
+        expect(res.body.stock).toBe(20);
+      });
 
-  test("Debería obtener un medicamento por nationalCode", async () => {
-    await request(app).get("/medications?nationalCode=654321").expect(200);
-  });
+      test("Should return 404 if medication not found", async () => {
+        const res = await request(app)
+          .patch("/medications?nationalCode=999999")
+          .send({ stock: 50 })
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
 
-  test("Debería devolver 404 si no existe el medicamento buscado", async () => {
-    await request(app)
-      .get("/medications?nationalCode=999999")
-      .expect(404);
-  });
-});
+      test("Should return 400 if no query string provided", async () => {
+        const res = await request(app)
+          .patch("/medications")
+          .send({ stock: 50 })
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
 
-describe("GET /medications/:id", () => {
-  test("Debería obtener un medicamento por su id", async () => {
-    const med = await Medication.findOne({ nationalCode: "654321" });
-    await request(app).get(`/medications/${med!._id}`).expect(200);
-  });
+      test("Should return 400 with invalid update value", async () => {
+        const res = await request(app)
+          .patch("/medications?nationalCode=654321")
+          .send({ stock: -10 })
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
 
-  test("Debería devolver 404 si el id no existe", async () => {
-    await request(app)
-      .get("/medications/000000000000000000000000")
-      .expect(404);
-  });
+    describe("Update by database ID", () => {
+      test("Should update medication by id", async () => {
+        const res = await request(app)
+          .patch(`/medications/${createdMedicationId}`)
+          .send({ stock: 75 })
+          .expect(200);
+        expect(res.body.stock).toBe(75);
 
-  test("Debería devolver 500 si el id tiene formato inválido", async () => {
-    await request(app).get("/medications/formatoinvalido").expect(500);
-  });
-});
+        const updated = await Medication.findById(createdMedicationId);
+        expect(updated!.stock).toBe(75);
+      });
 
-describe("PATCH /medications", () => {
-  test("Debería actualizar un medicamento por nationalCode", async () => {
-    const response = await request(app)
-      .patch("/medications?nationalCode=654321")
-      .send({ stock: 50 })
-      .expect(200);
-
-    expect(response.body.stock).to.equal(50);
-  });
-
-  test("Debería devolver 404 si el nationalCode no existe", async () => {
-    await request(app)
-      .patch("/medications?nationalCode=999999")
-      .send({ stock: 50 })
-      .expect(404);
-  });
-
-  test("Debería devolver 400 si no se proporciona nationalCode", async () => {
-    await request(app).patch("/medications").send({ stock: 50 }).expect(400);
-  });
-});
-
-describe("PATCH /medications/:id", () => {
-  test("Debería actualizar un medicamento por id", async () => {
-    const med = await Medication.findOne({ nationalCode: "654321" });
-    const response = await request(app)
-      .patch(`/medications/${med!._id}`)
-      .send({ stock: 75 })
-      .expect(200);
-
-    expect(response.body.stock).to.equal(75);
+      test("Should return 404 if id does not exist", async () => {
+        const res = await request(app)
+          .patch("/medications/000000000000000000000000")
+          .send({ stock: 75 })
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
   });
 
-  test("Debería devolver 404 si el id no existe", async () => {
-    await request(app)
-      .patch("/medications/000000000000000000000000")
-      .send({ stock: 75 })
-      .expect(404);
-  });
-});
+  describe("DELETE /medications", () => {
+    describe("Delete by query string", () => {
+      test("Should mark medication as inactive by nationalCode", async () => {
+        const res = await request(app)
+          .delete("/medications?nationalCode=654321")
+          .expect(200);
+        expect(res.body.nationalCode).toBe("654321");
+        expect(res.body.status).toBe("inactive");
 
-describe("DELETE /medications", () => {
-  test("Debería eliminar un medicamento por nationalCode", async () => {
-    await request(app)
-      .delete("/medications?nationalCode=654321")
-      .expect(200);
-  });
+        const med = await Medication.findOne({ nationalCode: "654321" });
+        expect(med).not.toBe(null);
+        expect(med!.status).toBe("inactive");
+      });
 
-  test("Debería devolver 404 si el nationalCode no existe", async () => {
-    await request(app)
-      .delete("/medications?nationalCode=999999")
-      .expect(404);
-  });
+      test("Should mark medication as inactive by commercialName", async () => {
+        const res = await request(app)
+          .delete("/medications?commercialName=Ibuprofeno Kern")
+          .expect(200);
+        expect(res.body.commercialName).toBe("Ibuprofeno Kern");
+        expect(res.body.status).toBe("inactive");
+      });
 
-  test("Debería devolver 400 si no se proporciona nationalCode", async () => {
-    await request(app).delete("/medications").expect(400);
-  });
-});
+      test("Should mark medication as inactive by activeIngredient", async () => {
+        const res = await request(app)
+          .delete("/medications?activeIngredient=Ibuprofeno")
+          .expect(200);
+        expect(res.body.activeIngredient).toBe("Ibuprofeno");
+        expect(res.body.status).toBe("inactive");
+      });
 
-describe("DELETE /medications/:id", () => {
-  test("Debería eliminar un medicamento por id", async () => {
-    const med = await Medication.findOne({ nationalCode: "654321" });
-    await request(app).delete(`/medications/${med!._id}`).expect(200);
-  });
+      test("Should return 404 if medication not found", async () => {
+        const res = await request(app)
+          .delete("/medications?nationalCode=999999")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
 
-  test("Debería devolver 404 si el id no existe", async () => {
-    await request(app)
-      .delete("/medications/000000000000000000000000")
-      .expect(404);
+      test("Should return 404 if medication is already inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .delete("/medications?nationalCode=654321")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 400 if no query string provided", async () => {
+        const res = await request(app)
+          .delete("/medications")
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
+
+    describe("Delete by database ID", () => {
+      test("Should mark medication as inactive by id", async () => {
+        const res = await request(app)
+          .delete(`/medications/${createdMedicationId}`)
+          .expect(200);
+        expect(res.body.nationalCode).toBe("654321");
+        expect(res.body.status).toBe("inactive");
+
+        const med = await Medication.findById(createdMedicationId);
+        expect(med).not.toBe(null);
+        expect(med!.status).toBe("inactive");
+      });
+
+      test("Should return 404 if medication is already inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .delete(`/medications/${createdMedicationId}`)
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 404 if id does not exist", async () => {
+        const res = await request(app)
+          .delete("/medications/000000000000000000000000")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+    });
   });
 });

@@ -1,7 +1,5 @@
 import { Document, Schema, model } from 'mongoose';
-import { PharmaFormType} from '../types/metications.js'
-import { AdminRouteType} from '../types/metications.js'
-
+import { PharmaFormType, AdminRouteType } from '../types/medications.js';
 
 export interface MedicationDocumentInterface extends Document {
   commercialName: string;
@@ -16,6 +14,7 @@ export interface MedicationDocumentInterface extends Document {
   requiresPrescription: boolean;
   expiryDate: Date;
   contraindications: string[];
+  status: 'active' | 'inactive';
 }
 
 const MedicationSchema = new Schema<MedicationDocumentInterface>({
@@ -36,6 +35,10 @@ const MedicationSchema = new Schema<MedicationDocumentInterface>({
     required: true,
     unique: true,
     trim: true,
+    validate: {
+      validator: (value: string) => /^\d+$/.test(value),
+      message: 'National code must contain only digits.',
+    },
   },
   pharmaForm: {
     type: String,
@@ -72,7 +75,7 @@ const MedicationSchema = new Schema<MedicationDocumentInterface>({
     min: 0,
     validate: {
       validator: Number.isInteger,
-      message: 'El stock debe ser un número entero.',
+      message: 'Stock must be an integer.',
     },
   },
   pricePerUnit: {
@@ -87,10 +90,19 @@ const MedicationSchema = new Schema<MedicationDocumentInterface>({
   expiryDate: {
     type: Date,
     required: true,
+    validate: {
+      validator: (value: Date) => value > new Date(),
+      message: 'Expiry date must be in the future.',
+    },
   },
   contraindications: {
     type: [String],
     default: [],
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
   },
 });
 

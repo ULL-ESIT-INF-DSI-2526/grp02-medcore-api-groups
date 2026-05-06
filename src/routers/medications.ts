@@ -3,9 +3,6 @@ import { Medication } from "../models/medications.js";
 
 export const medicationRouter = express.Router();
 
-/**
- * POST /medications - Crear un nuevo medicamento
- */
 medicationRouter.post("/medications", async (req, res) => {
   try {
     const medication = new Medication(req.body);
@@ -13,15 +10,12 @@ medicationRouter.post("/medications", async (req, res) => {
     return res.status(201).send(medication);
   } catch (error) {
     return res.status(400).send({
-      msg: "Error al crear el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Failed to create medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * GET /medications - Buscar por query string (commercialName, activeIngredient o nationalCode)
- */
 medicationRouter.get("/medications", async (req, res) => {
   try {
     const filter: Record<string, unknown> = {};
@@ -34,66 +28,63 @@ medicationRouter.get("/medications", async (req, res) => {
     if (req.query.nationalCode) {
       filter.nationalCode = req.query.nationalCode.toString();
     }
-
     const medications = await Medication.find(filter);
     if (medications.length === 0) {
-      return res.status(404).send({ msg: "No se encontraron medicamentos" });
+      return res.status(404).send({ error: "No medications found" });
     }
     return res.status(200).send(medications);
   } catch (error) {
     return res.status(500).send({
-      msg: "Error interno al buscar medicamentos",
-      error: error instanceof Error ? error.message : error,
+      error: "Internal error while searching medications",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * GET /medications/:id - Buscar por ID único
- */
 medicationRouter.get("/medications/:id", async (req, res) => {
   try {
     const medication = await Medication.findById(req.params.id);
     if (!medication) {
-      return res.status(404).send({ msg: "Medicamento no encontrado" });
+      return res.status(404).send({ error: "Medication not found" });
     }
     return res.status(200).send(medication);
   } catch (error) {
     return res.status(500).send({
-      msg: "Error al buscar el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Internal error while searching medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * PATCH /medications - Actualizar por query string (nationalCode)
- */
 medicationRouter.patch("/medications", async (req, res) => {
-  if (!req.query.nationalCode) {
-    return res.status(400).send({ msg: "Debe proporcionarse el nationalCode en la query string" });
+  const { commercialName, activeIngredient, nationalCode } = req.query;
+  if (!commercialName && !activeIngredient && !nationalCode) {
+    return res.status(400).send({
+      error: "A query string parameter must be provided: commercialName, activeIngredient or nationalCode",
+    });
   }
   try {
-    const medication = await Medication.findOneAndUpdate(
-      { nationalCode: req.query.nationalCode.toString() },
-      req.body,
-      { new: true, runValidators: true },
-    );
+    const filter: Record<string, unknown> = {};
+    if (commercialName) filter.commercialName = commercialName.toString();
+    if (activeIngredient) filter.activeIngredient = activeIngredient.toString();
+    if (nationalCode) filter.nationalCode = nationalCode.toString();
+
+    const medication = await Medication.findOneAndUpdate(filter, req.body, {
+      new: true,
+      runValidators: true,
+    });
     if (!medication) {
-      return res.status(404).send({ msg: "Medicamento no encontrado" });
+      return res.status(404).send({ error: "Medication not found" });
     }
     return res.status(200).send(medication);
   } catch (error) {
     return res.status(400).send({
-      msg: "Error al actualizar el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Failed to update medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * PATCH /medications/:id - Actualizar por ID único
- */
 medicationRouter.patch("/medications/:id", async (req, res) => {
   try {
     const medication = await Medication.findByIdAndUpdate(
@@ -102,54 +93,62 @@ medicationRouter.patch("/medications/:id", async (req, res) => {
       { new: true, runValidators: true },
     );
     if (!medication) {
-      return res.status(404).send({ msg: "Medicamento no encontrado" });
+      return res.status(404).send({ error: "Medication not found" });
     }
     return res.status(200).send(medication);
   } catch (error) {
     return res.status(400).send({
-      msg: "Error al actualizar el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Failed to update medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * DELETE /medications - Eliminar por query string (nationalCode)
- */
 medicationRouter.delete("/medications", async (req, res) => {
-  if (!req.query.nationalCode) {
-    return res.status(400).send({ msg: "Debe proporcionarse el nationalCode en la query string" });
+  const { commercialName, activeIngredient, nationalCode } = req.query;
+  if (!commercialName && !activeIngredient && !nationalCode) {
+    return res.status(400).send({
+      error: "A query string parameter must be provided: commercialName, activeIngredient or nationalCode",
+    });
   }
   try {
-    const medication = await Medication.findOneAndDelete({
-      nationalCode: req.query.nationalCode.toString(),
-    });
+    const filter: Record<string, unknown> = { status: 'active' };
+    if (commercialName) filter.commercialName = commercialName.toString();
+    if (activeIngredient) filter.activeIngredient = activeIngredient.toString();
+    if (nationalCode) filter.nationalCode = nationalCode.toString();
+
+    const medication = await Medication.findOneAndUpdate(
+      filter,
+      { status: 'inactive' },
+      { new: true },
+    );
     if (!medication) {
-      return res.status(404).send({ msg: "Medicamento no encontrado" });
+      return res.status(404).send({ error: "Medication not found or already inactive" });
     }
     return res.status(200).send(medication);
   } catch (error) {
     return res.status(500).send({
-      msg: "Error al eliminar el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Failed to delete medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
 
-/**
- * DELETE /medications/:id - Eliminar por ID único
- */
 medicationRouter.delete("/medications/:id", async (req, res) => {
   try {
-    const medication = await Medication.findByIdAndDelete(req.params.id);
+    const medication = await Medication.findOneAndUpdate(
+      { _id: req.params.id, status: 'active' },
+      { status: 'inactive' },
+      { new: true },
+    );
     if (!medication) {
-      return res.status(404).send({ msg: "Medicamento no encontrado" });
+      return res.status(404).send({ error: "Medication not found or already inactive" });
     }
     return res.status(200).send(medication);
   } catch (error) {
     return res.status(500).send({
-      msg: "Error al eliminar el medicamento",
-      error: error instanceof Error ? error.message : error,
+      error: "Failed to delete medication",
+      details: error instanceof Error ? error.message : error,
     });
   }
 });
