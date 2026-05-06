@@ -3,7 +3,7 @@ import request from "supertest";
 import { app } from "../src/app.js";
 import { Staff } from "../src/models/staff.js";
 
-vi.mock("../src/models/Staff.js", () => {
+vi.mock("../src/models/staff.js", () => {
   return {
     Staff: {
       find: vi.fn(),
