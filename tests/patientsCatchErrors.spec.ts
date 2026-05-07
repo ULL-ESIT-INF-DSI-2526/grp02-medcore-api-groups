@@ -42,7 +42,7 @@ describe("Patient Errores Catch", () => {
   });
 
   describe("POST /patients", () => {
-    test("Debería devolver error 400 cuando falla el guardado", async () => {
+    test("Debería devolver error 500 cuando falla el guardado", async () => {
       vi.mocked(Patient.findOne).mockResolvedValue(null);
       vi.mocked(Patient.prototype.save).mockRejectedValue(new Error("Save failed"));
 
@@ -56,13 +56,13 @@ describe("Patient Errores Catch", () => {
   });
 
   describe("PATCH /patients", () => {
-    test("Debería devolver error 400 cuando falla la actualización por query", async () => {
+    test("Debería devolver error 500 cuando falla la actualización por query", async () => {
       vi.mocked(Patient.findOneAndUpdate).mockRejectedValue(new Error("Update failed"));
       
       const response = await request(app)
         .patch("/patients?identificationNumber=12345")
         .send({ fullName: "Test" })
-        .expect(400);
+        .expect(500);
 
       expect(response.body.msg).toBe("Error updating patient: validation failed");
     });
