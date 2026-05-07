@@ -9,6 +9,7 @@ export interface IRecord {
   staffRef: IStaffDocument
   registerType: RegisterType
   startTimestamp: Date
+  endTimestamp?: Date | null
   reason: string
   diagnosis: string
   medicationList: IPrescribedMedication[]

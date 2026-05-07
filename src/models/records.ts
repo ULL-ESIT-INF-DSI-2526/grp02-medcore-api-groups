@@ -24,9 +24,14 @@ const RecordSchema = new Schema<RecordsDocumentInterface>({
     }
   },
   startTimestamp: {
-    type: Date ,
+    type: Date,
     default: Date.now,
     required: true
+  },
+  endTimestamp: {
+    type: Date,
+    default: null,
+    required: false
   },
   reason: {
     type: String,
