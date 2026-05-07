@@ -199,15 +199,6 @@ describe("Pruebas del API de Pacientes", () => {
         .expect(404);
     });
 
-    // test("Debería devolver 400 si los datos enviados fallan la validación", async () => {
-    //   await request(app)
-    //     .patch(
-    //       `/patients?identificationNumber=${firstPatient.identificationNumber}`,
-    //     )
-    //     .send({ contactData: { email: "no-email" } })
-    //     .expect(400);
-    // });
-
     test("Debería actualizar los datos de un paciente activo usando su ID", async () => {
       const res = await request(app)
         .patch(`/patients/${createdPatientId}`)
