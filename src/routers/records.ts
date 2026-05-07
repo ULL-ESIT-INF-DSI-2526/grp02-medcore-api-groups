@@ -63,6 +63,23 @@ async function validateMedication(
 }
 
 /**
+ * Actualiza el stock de los medicamentos
+ * @param medications - Medicamentos cuyo stock actualizar
+ * @param operation - Suma o resta
+ */
+async function updateStock(medications: Array<{ medication: any; amount: number }>,
+operation: 'subtract' | 'add') {
+  for (const med of medications) {
+    const increment = operation === "subtract" ? -med.amount : med.amount;
+    const medication = await Medication.findById(med.medication);
+    if (medication) {
+      medication.stock += increment;
+      await medication.save();
+    }
+  }
+}
+
+/**
  * GET /records 
  * posibles usos:
  * 1. ?patientIdentificationNumber=...
@@ -143,4 +160,34 @@ recordRouter.get("/records/:id", async (req, res) => {
   }
 
   return res.status(200).send(record);
+});
+
+/**
+ * POST /records
+ */
+recordRouter.post("/records", async (req, res) => {
+  try {
+    const { patientIdentificationNumber, collegiateNumber, medications, ...rest } = req.body;
+
+    const patient = await validatePatient(patientIdentificationNumber);
+    if (!patient) return res.status(404).send({ msg: "Patient not found, or inactive" });
+
+    const staff = await validateStaff(collegiateNumber);
+    if (!staff) return res.status(404).send({ msg: "Staff not found" });
+
+    const { validMeds, totalImport } = await validateMedication(medications);
+    await updateStock(validMeds, "subtract");
+    const newRecord = new Record({
+      ...rest,
+      patientRef: patient._id,
+      staffRef: staff._id,
+      medicationList: validMeds,
+      totalImport,
+      startTimestamp: rest.startTimestamp || new Date()
+    });
+    await newRecord.save();
+    return res.status(201).send(newRecord);
+  } catch (error) {
+    return res.status(400).send({ msg: "Error creating record" });
+  }
 });
