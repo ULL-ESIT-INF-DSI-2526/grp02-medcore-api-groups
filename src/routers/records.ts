@@ -218,7 +218,7 @@ recordRouter.post("/records", async (req, res) => {
     await newRecord.save();
     return res.status(201).send(newRecord);
   } catch (error) {
-    return res.status(400).send({ msg: "Error creating record" });
+    return res.status(500).send({ msg: "Error creating record" });
   }
 });
 
@@ -251,7 +251,6 @@ recordRouter.patch("/records/:id", async (req, res) => {
         if (error instanceof Error) {
           return res.status(400).send({ msg: error.message });
         }
-        return res.status(400).send({ msg: "Error validating medications" });
       }
     }
 
@@ -284,7 +283,7 @@ recordRouter.delete("/records/:id", async (req, res) => {
     if (!existingRecord) {
       return res.status(404).send({ msg: "Record not found" });
     }
-    if (existingRecord.status === "cancelled") {
+    if (existingRecord.registerStatus === "cancelled") {
       return res.status(400).send({ msg: "Record is already cancelled" });
     }
 
