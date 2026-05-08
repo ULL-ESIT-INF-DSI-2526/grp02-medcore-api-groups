@@ -269,3 +269,37 @@ recordRouter.patch("/records/:id", async (req, res) => {
     return res.status(500).send({ msg: "Internal server error" });
   }
 });
+
+/**
+ * DELETE /records/:id
+ * Cancela un registro médico y restaura el stock de los medicamentos
+ */
+recordRouter.delete("/records/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ msg: "Invalid ID format" });
+    }
+    const existingRecord = await Record.findById(id).populate("medicationList.medication");
+    if (!existingRecord) {
+      return res.status(404).send({ msg: "Record not found" });
+    }
+    if (existingRecord.status === "cancelled") {
+      return res.status(400).send({ msg: "Record is already cancelled" });
+    }
+
+    for (const med of existingRecord.medicationList) {
+      await Medication.findByIdAndUpdate(
+        med.medication._id,
+        { $inc: { stock: med.amount }}
+      );
+    }
+
+    existingRecord.registerStatus = "cancelled";
+    existingRecord.endTimestamp = new Date();
+    await existingRecord.save();
+    return res.status(200).send({ msg: "Record cancelled and stock restored", existingRecord });
+  } catch (error) {
+    return res.status(500).send({ msg: "Error cancelling record" });
+  }
+});
