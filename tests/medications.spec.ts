@@ -1,4 +1,4 @@
-import { describe, test, beforeEach, expect } from "vitest";
+import { describe, test, beforeEach, expect, vi } from "vitest";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { Medication } from "../src/models/medications.js";
@@ -95,6 +95,16 @@ describe("Medication API", () => {
         .expect(400);
       expect(res.body).toHaveProperty("error");
     });
+
+    test("Should return 500 on unexpected error", async () => {
+      vi.spyOn(Medication.prototype, 'save').mockRejectedValueOnce(new Error("Unexpected DB error"));
+      const res = await request(app)
+        .post("/medications")
+        .send({ ...firstMedication, nationalCode: "777111" })
+        .expect(500);
+      expect(res.body).toHaveProperty("error");
+      vi.restoreAllMocks();
+    });
   });
 
   describe("GET /medications", () => {
@@ -125,6 +135,15 @@ describe("Medication API", () => {
           .get("/medications?nationalCode=999999")
           .expect(404);
         expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 500 on unexpected error", async () => {
+        vi.spyOn(Medication, 'find').mockRejectedValueOnce(new Error("DB error"));
+        const res = await request(app)
+          .get("/medications?nationalCode=654321")
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+        vi.restoreAllMocks();
       });
     });
 
@@ -202,6 +221,16 @@ describe("Medication API", () => {
           .expect(400);
         expect(res.body).toHaveProperty("error");
       });
+
+      test("Should return 500 on unexpected error", async () => {
+        vi.spyOn(Medication, 'findOneAndUpdate').mockRejectedValueOnce(new Error("DB error"));
+        const res = await request(app)
+          .patch("/medications?nationalCode=654321")
+          .send({ stock: 50 })
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+        vi.restoreAllMocks();
+      });
     });
 
     describe("Update by database ID", () => {
@@ -215,13 +244,29 @@ describe("Medication API", () => {
         const updated = await Medication.findById(createdMedicationId);
         expect(updated!.stock).toBe(75);
       });
-
+test("Should return 400 with invalid update value by id", async () => {
+  const res = await request(app)
+    .patch(`/medications/${createdMedicationId}`)
+    .send({ stock: -10 })
+    .expect(400);
+  expect(res.body).toHaveProperty("error");
+});
       test("Should return 404 if id does not exist", async () => {
         const res = await request(app)
           .patch("/medications/000000000000000000000000")
           .send({ stock: 75 })
           .expect(404);
         expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 500 on unexpected error", async () => {
+        vi.spyOn(Medication, 'findByIdAndUpdate').mockRejectedValueOnce(new Error("DB error"));
+        const res = await request(app)
+          .patch(`/medications/${createdMedicationId}`)
+          .send({ stock: 75 })
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+        vi.restoreAllMocks();
       });
     });
   });
@@ -277,6 +322,15 @@ describe("Medication API", () => {
           .expect(400);
         expect(res.body).toHaveProperty("error");
       });
+
+      test("Should return 500 on unexpected error", async () => {
+        vi.spyOn(Medication, 'findOneAndUpdate').mockRejectedValueOnce(new Error("DB error"));
+        const res = await request(app)
+          .delete("/medications?nationalCode=654321")
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+        vi.restoreAllMocks();
+      });
     });
 
     describe("Delete by database ID", () => {
@@ -305,6 +359,15 @@ describe("Medication API", () => {
           .delete("/medications/000000000000000000000000")
           .expect(404);
         expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 500 on unexpected error", async () => {
+        vi.spyOn(Medication, 'findOneAndUpdate').mockRejectedValueOnce(new Error("DB error"));
+        const res = await request(app)
+          .delete(`/medications/${createdMedicationId}`)
+          .expect(500);
+        expect(res.body).toHaveProperty("error");
+        vi.restoreAllMocks();
       });
     });
   });

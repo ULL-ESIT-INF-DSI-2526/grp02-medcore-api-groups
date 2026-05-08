@@ -1,23 +1,7 @@
-import { Document, Schema, model, models } from 'mongoose';
-import { PharmaFormType, AdminRouteType } from '../types/medications.js';
+import { IMedication } from '../interfaces/IMedication.js';
+import mongoose, { Schema, model } from 'mongoose';
 
-export interface MedicationDocumentInterface extends Document {
-  commercialName: string;
-  activeIngredient: string;
-  nationalCode: string;
-  pharmaForm: PharmaFormType;
-  standardDose: number;
-  doseUnit: string;
-  adminRoute: AdminRouteType;
-  stock: number;
-  pricePerUnit: number;
-  requiresPrescription: boolean;
-  expiryDate: Date;
-  contraindications: string[];
-  status: 'active' | 'inactive';
-}
-
-const MedicationSchema = new Schema<MedicationDocumentInterface>({
+const MedicationSchema = new Schema<IMedication>({
   commercialName: {
     type: String,
     required: true,
@@ -106,4 +90,4 @@ const MedicationSchema = new Schema<MedicationDocumentInterface>({
   },
 });
 
-export const Medication = models.Medication || model<MedicationDocumentInterface>('Medication', MedicationSchema);
+export const Medication = mongoose.models.Medication || model<IMedication>('Medication', MedicationSchema);

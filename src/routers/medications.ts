@@ -9,8 +9,19 @@ medicationRouter.post("/medications", async (req, res) => {
     await medication.save();
     return res.status(201).send(medication);
   } catch (error) {
-    return res.status(400).send({
-      error: "Failed to create medication",
+    if (error instanceof Error && error.name === 'ValidationError') {
+      return res.status(400).send({
+        error: "Failed to create medication",
+        details: error.message,
+      });
+    }
+    if (error instanceof Error && (error as any).code === 11000) {
+      return res.status(400).send({
+        error: "Medication with that nationalCode already exists",
+      });
+    }
+    return res.status(500).send({
+      error: "Internal server error",
       details: error instanceof Error ? error.message : error,
     });
   }
@@ -78,8 +89,14 @@ medicationRouter.patch("/medications", async (req, res) => {
     }
     return res.status(200).send(medication);
   } catch (error) {
-    return res.status(400).send({
-      error: "Failed to update medication",
+    if (error instanceof Error && error.name === 'ValidationError') {
+      return res.status(400).send({
+        error: "Failed to update medication",
+        details: error.message,
+      });
+    }
+    return res.status(500).send({
+      error: "Internal server error",
       details: error instanceof Error ? error.message : error,
     });
   }
@@ -97,8 +114,14 @@ medicationRouter.patch("/medications/:id", async (req, res) => {
     }
     return res.status(200).send(medication);
   } catch (error) {
-    return res.status(400).send({
-      error: "Failed to update medication",
+    if (error instanceof Error && error.name === 'ValidationError') {
+      return res.status(400).send({
+        error: "Failed to update medication",
+        details: error.message,
+      });
+    }
+    return res.status(500).send({
+      error: "Internal server error",
       details: error instanceof Error ? error.message : error,
     });
   }
