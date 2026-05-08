@@ -2,6 +2,6 @@ import { MedicationDocumentInterface } from "../models/medications.js";
 
 export interface IPrescribedMedication {
   medication: MedicationDocumentInterface
-  ammount: number
+  amount: number
   posology: string
 }

@@ -67,8 +67,10 @@ async function validateMedication(
  * @param medications - Medicamentos cuyo stock actualizar
  * @param operation - Suma o resta
  */
-async function updateStock(medications: Array<{ medication: any; amount: number }>,
-operation: 'subtract' | 'add') {
+async function updateStock(
+  medications: Array<{ medication: any; amount: number }>,
+  operation: "subtract" | "add",
+) {
   for (const med of medications) {
     const increment = operation === "subtract" ? -med.amount : med.amount;
     const medication = await Medication.findById(med.medication);
@@ -80,7 +82,7 @@ operation: 'subtract' | 'add') {
 }
 
 /**
- * GET /records 
+ * GET /records
  * posibles usos:
  * 1. ?patientIdentificationNumber=...
  * 2. ?iniDate=...&endDate=...&type=...
@@ -106,7 +108,6 @@ recordRouter.get("/records", async (req, res) => {
     return res.status(200).send(records);
   }
 
-
   const records = await Record.find()
     .populate("patientRef")
     .populate("staffRef")
@@ -116,21 +117,26 @@ recordRouter.get("/records", async (req, res) => {
 
   if (iniDate) {
     const ini = new Date(iniDate as string);
-    filterRecords = filterRecords.filter((rec) => 
-      rec.startTimestamp && rec.startTimestamp.getTime() >= ini.getTime()
+    filterRecords = filterRecords.filter(
+      (rec) =>
+        rec.startTimestamp && rec.startTimestamp.getTime() >= ini.getTime(),
     );
   }
 
   if (endDate) {
     const end = new Date(endDate as string);
-    filterRecords = filterRecords.filter((rec) => 
-      rec.startTimestamp && rec.startTimestamp.getTime() <= end.getTime()
+    filterRecords = filterRecords.filter(
+      (rec) =>
+        rec.startTimestamp && rec.startTimestamp.getTime() <= end.getTime(),
     );
   }
 
   if (type) {
     const typeQuery = type as string;
-    const availableTypes: RegisterType[] = ["ambulatory consult", "hospital admission"];
+    const availableTypes: RegisterType[] = [
+      "ambulatory consult",
+      "hospital admission",
+    ];
 
     if (!availableTypes.includes(typeQuery as RegisterType)) {
       return res.status(400).send({
@@ -138,7 +144,9 @@ recordRouter.get("/records", async (req, res) => {
       });
     }
 
-    filterRecords = filterRecords.filter((rec) => rec.registerType === typeQuery);
+    filterRecords = filterRecords.filter(
+      (rec) => rec.registerType === typeQuery,
+    );
   }
 
   return res.status(200).send(filterRecords);
@@ -167,10 +175,16 @@ recordRouter.get("/records/:id", async (req, res) => {
  */
 recordRouter.post("/records", async (req, res) => {
   try {
-    const { patientIdentificationNumber, collegiateNumber, medications, ...rest } = req.body;
+    const {
+      patientIdentificationNumber,
+      collegiateNumber,
+      medications,
+      ...rest
+    } = req.body;
 
     const patient = await validatePatient(patientIdentificationNumber);
-    if (!patient) return res.status(404).send({ msg: "Patient not found, or inactive" });
+    if (!patient)
+      return res.status(404).send({ msg: "Patient not found, or inactive" });
 
     const staff = await validateStaff(collegiateNumber);
     if (!staff) return res.status(404).send({ msg: "Staff not found" });
@@ -183,11 +197,59 @@ recordRouter.post("/records", async (req, res) => {
       staffRef: staff._id,
       medicationList: validMeds,
       totalImport,
-      startTimestamp: rest.startTimestamp || new Date()
+      startTimestamp: rest.startTimestamp || new Date(),
     });
     await newRecord.save();
     return res.status(201).send(newRecord);
   } catch (error) {
     return res.status(400).send({ msg: "Error creating record" });
+  }
+});
+
+/**
+ * PATCH /records/:id
+ */
+recordRouter.patch("/records/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { medications, ...newData } = req.body;
+
+    const oldRecord = await Record.findById(id);
+    if (!oldRecord) {
+      return res.status(404).send({ msg: "Record not found" });
+    }
+
+    if (medications) {
+      await updateStock(oldRecord.medicationList, "add");
+
+      try {
+        const { validMeds, totalImport } = await validateMedication(medications);
+        await updateStock(validMeds, "subtract");
+
+        newData.medicationList = validMeds;
+        newData.totalImport = totalImport;
+      } catch (error) {
+        await updateStock(oldRecord.medicationList, "subtract");
+        
+        if (error instanceof Error) {
+          return res.status(400).send({ msg: error.message });
+        }
+        return res.status(400).send({ msg: "Error validating medications" });
+      }
+    }
+
+    const updatedRecord = await Record.findByIdAndUpdate(
+      id,
+      { $set: newData },
+      { new: true, runValidators: true }
+    ).populate("patientRef staffRef medicationList.medication");
+
+    return res.status(200).send(updatedRecord);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).send({ msg: error.message });
+    }
+    return res.status(500).send({ msg: "Internal server error" });
   }
 });

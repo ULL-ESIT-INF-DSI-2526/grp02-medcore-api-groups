@@ -47,7 +47,7 @@ const RecordSchema = new Schema<RecordsDocumentInterface>({
       ref: "Medication", 
       required: true
     },
-    ammount: {
+    amount: {
       type: Number,
       required: true,
       min: [1, "Amount must be at least 1"]

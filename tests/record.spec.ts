@@ -81,7 +81,7 @@ describe("GET /records (Patient Filter)", () => {
       medicationList: [
         {
           medication: testMed._id,
-          ammount: 2,
+          amount: 2,
           posology: "Cada 8 horas",
         },
       ],
