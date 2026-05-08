@@ -88,86 +88,102 @@ async function updateStock(
  * 2. ?iniDate=...&endDate=...&type=...
  */
 recordRouter.get("/records", async (req, res) => {
-  const { patientIdentificationNumber, iniDate, endDate, type } = req.query;
+  try {
+    const { patientIdentificationNumber, iniDate, endDate, type } = req.query;
 
-  if (patientIdentificationNumber) {
-    const patient = await Patient.findOne({
-      identificationNumber: patientIdentificationNumber as string,
-    });
-
-    if (!patient) {
-      return res.status(404).send({ msg: "Patient not found" });
-    }
-
-    const records = await Record.find({ patientRef: patient._id })
-      .sort({ startTimestamp: -1 })
-      .populate("patientRef")
-      .populate("staffRef")
-      .populate("medicationList.medication");
-
-    return res.status(200).send(records);
-  }
-
-  const records = await Record.find()
-    .populate("patientRef")
-    .populate("staffRef")
-    .populate("medicationList.medication");
-
-  let filterRecords = records;
-
-  if (iniDate) {
-    const ini = new Date(iniDate as string);
-    filterRecords = filterRecords.filter(
-      (rec) =>
-        rec.startTimestamp && rec.startTimestamp.getTime() >= ini.getTime(),
-    );
-  }
-
-  if (endDate) {
-    const end = new Date(endDate as string);
-    filterRecords = filterRecords.filter(
-      (rec) =>
-        rec.startTimestamp && rec.startTimestamp.getTime() <= end.getTime(),
-    );
-  }
-
-  if (type) {
-    const typeQuery = type as string;
-    const availableTypes: RegisterType[] = [
-      "ambulatory consult",
-      "hospital admission",
-    ];
-
-    if (!availableTypes.includes(typeQuery as RegisterType)) {
-      return res.status(400).send({
-        msg: `${typeQuery} is not a valid register type. Allowed: ${availableTypes.join(", ")}`,
+    if (patientIdentificationNumber) {
+      const patient = await Patient.findOne({
+        identificationNumber: patientIdentificationNumber as string,
       });
+
+      if (!patient) {
+        return res.status(404).send({ msg: "Patient not found" });
+      }
+
+      const records = await Record.find({ patientRef: patient._id })
+        .sort({ startTimestamp: -1 })
+        .populate("patientRef staffRef medicationList.medication");
+
+      return res.status(200).send(records);
     }
 
-    filterRecords = filterRecords.filter(
-      (rec) => rec.registerType === typeQuery,
+    const records = await Record.find().populate(
+      "patientRef staffRef medicationList.medication",
     );
-  }
 
-  return res.status(200).send(filterRecords);
+    let filterRecords = records;
+
+    if (iniDate) {
+      const ini = new Date(iniDate as string);
+      filterRecords = filterRecords.filter(
+        (rec) =>
+          rec.startTimestamp && rec.startTimestamp.getTime() >= ini.getTime(),
+      );
+    }
+
+    if (endDate) {
+      const end = new Date(endDate as string);
+      filterRecords = filterRecords.filter(
+        (rec) =>
+          rec.startTimestamp && rec.startTimestamp.getTime() <= end.getTime(),
+      );
+    }
+
+    if (type) {
+      const typeQuery = type as string;
+      const availableTypes: RegisterType[] = [
+        "ambulatory consult",
+        "hospital admission",
+      ];
+
+      if (!availableTypes.includes(typeQuery as RegisterType)) {
+        return res.status(400).send({
+          msg: `${typeQuery} is not a valid register type. Allowed: ${availableTypes.join(", ")}`,
+        });
+      }
+
+      filterRecords = filterRecords.filter(
+        (rec) => rec.registerType === typeQuery,
+      );
+    }
+
+    return res.status(200).send(filterRecords);
+  } catch (error) {
+    if (error instanceof Error) {
+      return res
+        .status(500)
+        .send({ msg: "Error retrieving records", error: error.message });
+    }
+    return res.status(500).send({ msg: "An unexpected error occurred" });
+  }
 });
 
 /**
  * Get por parametro dinamico de id
  */
 recordRouter.get("/records/:id", async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const record = await Record.findById(id)
-    .populate("patientRef")
-    .populate("staffRef")
-    .populate("medicationList.medication");
+    const record = await Record.findById(id).populate(
+      "patientRef staffRef medicationList.medication",
+    );
 
-  if (!record) {
-    return res.status(404).send({ msg: "Record not found" });
+    if (!record) {
+      return res.status(404).send({ msg: "Record not found" });
+    }
+
+    return res.status(200).send(record);
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).send({
+        msg: "Invalid ID format or error retrieving record",
+        error: error.message,
+      });
+    }
+
+    return res.status(500).send({ msg: "Internal server error" });
   }
-
-  return res.status(200).send(record);
 });
 
 /**
@@ -223,14 +239,15 @@ recordRouter.patch("/records/:id", async (req, res) => {
       await updateStock(oldRecord.medicationList, "add");
 
       try {
-        const { validMeds, totalImport } = await validateMedication(medications);
+        const { validMeds, totalImport } =
+          await validateMedication(medications);
         await updateStock(validMeds, "subtract");
 
         newData.medicationList = validMeds;
         newData.totalImport = totalImport;
       } catch (error) {
         await updateStock(oldRecord.medicationList, "subtract");
-        
+
         if (error instanceof Error) {
           return res.status(400).send({ msg: error.message });
         }
@@ -241,11 +258,10 @@ recordRouter.patch("/records/:id", async (req, res) => {
     const updatedRecord = await Record.findByIdAndUpdate(
       id,
       { $set: newData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).populate("patientRef staffRef medicationList.medication");
 
     return res.status(200).send(updatedRecord);
-
   } catch (error) {
     if (error instanceof Error) {
       return res.status(500).send({ msg: error.message });
