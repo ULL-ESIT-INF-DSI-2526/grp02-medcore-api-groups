@@ -68,7 +68,7 @@ async function validateMedication(
  * @param operation - Suma o resta
  */
 async function updateStock(
-  medications: Array<{ medication: any; amount: number }>,
+  medications: Array<{ medication: unknown; amount: number }>,
   operation: "subtract" | "add",
 ) {
   for (const med of medications) {
