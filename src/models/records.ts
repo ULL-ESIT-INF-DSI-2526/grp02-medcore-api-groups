@@ -1,5 +1,5 @@
-import { Document, Schema, model, models } from "mongoose";
-import validator from "validator";
+import mongoose, { Document, Schema, model } from "mongoose"; // 1. Importa mongoose completo
+// import validator from "validator";
 import { IRecord } from "../interfaces/IRecord.js";
 
 export interface RecordsDocumentInterface extends IRecord, Document {}
@@ -76,4 +76,4 @@ const RecordSchema = new Schema<RecordsDocumentInterface>({
   timestamps: true
 })
 
-export const Record = models.Record || model<RecordsDocumentInterface>("Record", RecordSchema);
+export const Record = mongoose.models.Record || model<RecordsDocumentInterface>("Record", RecordSchema);

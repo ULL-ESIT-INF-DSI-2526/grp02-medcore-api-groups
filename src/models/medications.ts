@@ -1,4 +1,4 @@
-import mongoose, { Schema, model } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose'; // Añadido Document aquí
 import { PharmaFormType, AdminRouteType } from '../types/medications.js';
 
 export interface MedicationDocumentInterface extends Document {
