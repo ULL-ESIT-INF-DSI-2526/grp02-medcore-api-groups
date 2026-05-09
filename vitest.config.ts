@@ -10,5 +10,8 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    fileParallelism: false,
+    maxWorkers: 1,
+    minWorkers: 1,
   },
 });

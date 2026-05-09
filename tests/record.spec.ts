@@ -23,10 +23,12 @@ let recordId: string;
 
 describe("Records API Integration Tests", () => {
   beforeEach(async () => {
-    await Record.deleteMany({});
     await Patient.deleteMany({});
     await Staff.deleteMany({});
     await Medication.deleteMany({});
+    await Record.deleteMany({});
+
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     testPatient = await Patient.create({
       fullName: "Gabriel Martin Broock",
@@ -93,7 +95,7 @@ describe("Records API Integration Tests", () => {
     testMed.stock -= 2;
     await testMed.save();
 
-    recordId = (record._id as string).toString();
+    recordId = record._id.toString();
   });
 
   describe("GET /records", () => {
