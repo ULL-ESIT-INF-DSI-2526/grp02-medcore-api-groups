@@ -142,9 +142,10 @@ PatientSchema.set('toObject', { virtuals: true });
  * Middleware de validacion que asegura que existe al menos un identificador
  * del paciente, sea de seg social, de historial clinico, o ambos
  */
-PatientSchema.pre("validate", function (this: PatientDocumentInterface, next: (err?: CallbackError) => void) {
-  if (!this.socialNumber && !this.clinicNumber) {
-    return next(new Error("At least one ID, social or clinic, is required") as CallbackError);
+PatientSchema.pre<PatientDocumentInterface>("validate", function (next) {
+  const patient = this as PatientDocumentInterface;
+  if (!patient.socialNumber && !patient.clinicNumber) {
+    return next(new Error("At least one ID, social or clinic, is required"));
   }
   next();
 });
