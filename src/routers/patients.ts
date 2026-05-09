@@ -120,7 +120,7 @@ patientRouter.patch("/patients", async (req, res) => {
     }
   } catch (error) {
     return res
-      .status(400)
+      .status(500)
       .send({ msg: "Error updating patient: validation failed", error });
   }
 });
