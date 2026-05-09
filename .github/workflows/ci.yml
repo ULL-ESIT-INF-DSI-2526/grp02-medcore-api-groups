@@ -27,6 +27,6 @@ jobs:
         with:
           mongodb-version: ${{ matrix.mongodb-version }}
       - name: Installing dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - name: Running tests
         run: npm test
