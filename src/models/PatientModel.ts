@@ -1,4 +1,4 @@
-import { Document, Schema, model, models } from "mongoose";
+import { Document, Schema, model, models, CallbackError} from "mongoose";
 import validator from "validator";
 import { IPatient } from "../interfaces/IPatient.js";
 import { BloodGroup } from "../enums/BloodGroups.js";
@@ -142,9 +142,9 @@ PatientSchema.set('toObject', { virtuals: true });
  * Middleware de validacion que asegura que existe al menos un identificador
  * del paciente, sea de seg social, de historial clinico, o ambos
  */
-PatientSchema.pre("validate", function (this: any, next) {
+PatientSchema.pre("validate", function (this: PatientDocumentInterface, next: (err?: CallbackError) => void) {
   if (!this.socialNumber && !this.clinicNumber) {
-    return next(new Error("At least one ID, social or clinic, is required"));
+    return next(new Error("At least one ID, social or clinic, is required") as CallbackError);
   }
   next();
 });
