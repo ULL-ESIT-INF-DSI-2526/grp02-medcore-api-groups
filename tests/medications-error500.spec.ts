@@ -27,6 +27,7 @@ describe("Medication Error 500 Catch", () => {
 
   describe("POST /medications", () => {
     test("Should return 500 on unexpected error", async () => {
+      vi.mocked(Medication.findOne).mockResolvedValue(null);
       vi.mocked(Medication.prototype.save).mockRejectedValue(
         new Error("Unexpected DB error"),
       );
@@ -51,6 +52,7 @@ describe("Medication Error 500 Catch", () => {
     });
 
     test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findOne).mockResolvedValue(null);
       vi.mocked(Medication.prototype.save).mockRejectedValue("string error");
       const response = await request(app)
         .post("/medications")
@@ -93,7 +95,7 @@ describe("Medication Error 500 Catch", () => {
 
   describe("GET /medications/:id", () => {
     test("Should return 500 on unexpected error", async () => {
-      vi.mocked(Medication.findById).mockRejectedValue(new Error("DB error"));
+      vi.mocked(Medication.findOne).mockRejectedValue(new Error("DB error"));
       const response = await request(app)
         .get("/medications/60d21b4667d0d8992e610c85")
         .expect(500);
@@ -101,7 +103,7 @@ describe("Medication Error 500 Catch", () => {
     });
 
     test("Should handle non-Error thrown object", async () => {
-      vi.mocked(Medication.findById).mockRejectedValue("string error");
+      vi.mocked(Medication.findOne).mockRejectedValue("string error");
       const response = await request(app)
         .get("/medications/60d21b4667d0d8992e610c85")
         .expect(500);
@@ -133,7 +135,7 @@ describe("Medication Error 500 Catch", () => {
 
   describe("PATCH /medications/:id", () => {
     test("Should return 500 on unexpected error", async () => {
-      vi.mocked(Medication.findByIdAndUpdate).mockRejectedValue(
+      vi.mocked(Medication.findOneAndUpdate).mockRejectedValue(
         new Error("DB error"),
       );
       const response = await request(app)
@@ -144,7 +146,7 @@ describe("Medication Error 500 Catch", () => {
     });
 
     test("Should handle non-Error thrown object", async () => {
-      vi.mocked(Medication.findByIdAndUpdate).mockRejectedValue("string error");
+      vi.mocked(Medication.findOneAndUpdate).mockRejectedValue("string error");
       const response = await request(app)
         .patch("/medications/60d21b4667d0d8992e610c85")
         .send({ stock: 50 })
