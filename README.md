@@ -22,7 +22,7 @@ cd grp02-medcore-api-groups
 npm install
 ```
 
-
+Nota sobre seguridad: Por motivos estrictamente académicos y para facilitar la corrección y el despliegue rápido, se han incluido las variables de entorno en el repositorio. En un entorno de producción real, el archivo .env estaría incluido en el .gitignore y las credenciales se gestionarían de forma segura (ej. Secretos de GitHub o variables de entorno del servidor como hemos hecho con mongo y render)
 3. **Variables de entorno:**
 Crea un archivo `.env` con lo siguiente:
 ```env
