@@ -1,5 +1,6 @@
 import { Document } from 'mongoose';
-import { PharmaFormType, AdminRouteType } from '../types/medications.js';
+import { PharmaFormType } from '../types/PharmaForm.js';
+import { AdminRouteType } from '../types/AdminRoute.js';
 
 export interface IMedication extends Document {
   commercialName: string;
