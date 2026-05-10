@@ -7,7 +7,7 @@ import { patientRouter } from "./routers/patients.js";
 import { defaultRouter } from "./routers/default.js";
 import { staffRouter } from "./routers/staff.js";
 import { recordRouter } from "./routers/records.js";
-import { swaggerSpec } from "./docs/swagger.js";
+import { swaggerSpec } from "./config/swagger.js";
 
 export const app = express();
 app.use(express.json());

@@ -86,6 +86,71 @@ async function updateStock(
  * posibles usos:
  * 1. ?patientIdentificationNumber=...
  * 2. ?iniDate=...&endDate=...&type=...
+ *
+ * @swagger
+ * /records:
+ *   get:
+ *     summary: Lista o busca registros médicos
+ *     description: >
+ *       Tres modos:
+ *         1. `?patientIdentificationNumber=...` devuelve los registros del
+ *            paciente ordenados cronológicamente.
+ *         2. `?iniDate=...&endDate=...&type=...` filtra por rango de fechas y
+ *            opcionalmente por tipo de registro.
+ *         3. Sin parámetros, devuelve todos los registros.
+ *     tags:
+ *       - Records
+ *     parameters:
+ *       - in: query
+ *         name: patientIdentificationNumber
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Documento de identificación del paciente
+ *       - in: query
+ *         name: iniDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha inicial del rango
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha final del rango
+ *       - in: query
+ *         name: type
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ambulatory consult, hospital admission]
+ *         description: Tipo de registro
+ *     responses:
+ *       200:
+ *         description: Registros encontrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Record'
+ *       400:
+ *         description: Tipo de registro inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Paciente no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
  */
 recordRouter.get("/records", async (req, res) => {
   try {
@@ -160,6 +225,41 @@ recordRouter.get("/records", async (req, res) => {
 
 /**
  * Get por parametro dinamico de id
+ *
+ * @swagger
+ * /records/{id}:
+ *   get:
+ *     summary: Obtiene un registro médico por su _id
+ *     tags:
+ *       - Records
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Registro encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Record'
+ *       400:
+ *         description: Formato de ID inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Registro no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
  */
 recordRouter.get("/records/:id", async (req, res) => {
   try {
@@ -188,6 +288,43 @@ recordRouter.get("/records/:id", async (req, res) => {
 
 /**
  * POST /records
+ *
+ * @swagger
+ * /records:
+ *   post:
+ *     summary: Crea un nuevo registro médico
+ *     description: >
+ *       Crea un registro tras validar:
+ *         - que el paciente exista y esté activo (por
+ *           `patientIdentificationNumber`),
+ *         - que el médico exista y esté activo (por `collegiateNumber`),
+ *         - que cada medicamento exista, no esté caducado y tenga stock
+ *           suficiente.
+ *       Descuenta el stock de los medicamentos prescritos y calcula
+ *       `totalImport` automáticamente.
+ *     tags:
+ *       - Records
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RecordCreate'
+ *     responses:
+ *       201:
+ *         description: Registro médico creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Record'
+ *       404:
+ *         description: Paciente o médico no encontrado / inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor (medicamento inexistente, caducado o sin stock)
  */
 recordRouter.post("/records", async (req, res) => {
   try {
@@ -224,6 +361,51 @@ recordRouter.post("/records", async (req, res) => {
 
 /**
  * PATCH /records/:id
+ *
+ * @swagger
+ * /records/{id}:
+ *   patch:
+ *     summary: Actualiza un registro médico por su _id
+ *     description: >
+ *       Si el cuerpo incluye `medications`, restaura el stock anterior, valida
+ *       los nuevos medicamentos, descuenta el stock nuevo y recalcula
+ *       `totalImport`.
+ *     tags:
+ *       - Records
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RecordUpdate'
+ *     responses:
+ *       200:
+ *         description: Registro actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Record'
+ *       400:
+ *         description: Validación fallida (medicamento inexistente, caducado o sin stock)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Registro no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
  */
 recordRouter.patch("/records/:id", async (req, res) => {
   try {
@@ -272,6 +454,50 @@ recordRouter.patch("/records/:id", async (req, res) => {
 /**
  * DELETE /records/:id
  * Cancela un registro médico y restaura el stock de los medicamentos
+ *
+ * @swagger
+ * /records/{id}:
+ *   delete:
+ *     summary: Cancela un registro médico por su _id
+ *     description: >
+ *       Marca el registro como `cancelled`, fija `endTimestamp` al momento
+ *       actual y restaura el stock de todos los medicamentos prescritos.
+ *     tags:
+ *       - Records
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Registro cancelado y stock restaurado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Record cancelled and stock restored
+ *                 existingRecord:
+ *                   $ref: '#/components/schemas/Record'
+ *       400:
+ *         description: Formato de ID inválido o registro ya cancelado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Registro no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
  */
 recordRouter.delete("/records/:id", async (req, res) => {
   try {

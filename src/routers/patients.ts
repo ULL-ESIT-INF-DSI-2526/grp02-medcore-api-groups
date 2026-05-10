@@ -4,6 +4,58 @@ import { IPatient } from "../interfaces/IPatient.js";
 
 export const patientRouter = express.Router();
 
+/**
+ * @swagger
+ * /patients:
+ *   get:
+ *     summary: Lista o busca pacientes
+ *     description: >
+ *       Devuelve los pacientes que cumplan el filtro. Si se incluye
+ *       `identificationNumber` se devuelve un único paciente. Por defecto
+ *       solo se listan los pacientes activos; usar `status=inactive` para
+ *       los inactivos.
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: query
+ *         name: fullName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Nombre completo del paciente
+ *       - in: query
+ *         name: identificationNumber
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Documento de identificación del paciente
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive]
+ *         description: Estado del paciente (active por defecto)
+ *     responses:
+ *       200:
+ *         description: Paciente o lista de pacientes encontrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/Patient'
+ *                 - type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Patient'
+ *       404:
+ *         description: No se han encontrado pacientes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.get("/patients", async (req, res) => {
   try {
     const { fullName, identificationNumber, status } = req.query;
@@ -36,6 +88,36 @@ patientRouter.get("/patients", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients/{id}:
+ *   get:
+ *     summary: Obtiene un paciente por su _id
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Paciente encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       404:
+ *         description: Paciente no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.get("/patients/:id", async (req, res) => {
   try {
     const patient = await Patient.findOne({
@@ -56,6 +138,50 @@ patientRouter.get("/patients/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients:
+ *   post:
+ *     summary: Crea un nuevo paciente
+ *     description: >
+ *       Crea un paciente. Si ya existía con estado `inactive` lo reactiva
+ *       (200). Si ya existía activo, devuelve 409.
+ *     tags:
+ *       - Patients
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PatientCreate'
+ *     responses:
+ *       201:
+ *         description: Paciente creado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       200:
+ *         description: Paciente reactivado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Patient reactivated succesfully
+ *                 patient:
+ *                   $ref: '#/components/schemas/Patient'
+ *       409:
+ *         description: El paciente ya existe y está activo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.post("/patients", async (req, res) => {
   try {
     const { identificationNumber, fullName } = req.body;
@@ -94,6 +220,42 @@ patientRouter.post("/patients", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients:
+ *   patch:
+ *     summary: Actualiza un paciente por número de identificación
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: query
+ *         name: identificationNumber
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Documento de identificación del paciente activo a actualizar
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PatientUpdate'
+ *     responses:
+ *       200:
+ *         description: Paciente actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       404:
+ *         description: Paciente no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.patch("/patients", async (req, res) => {
   try {
     const { fullName, identificationNumber } = req.query;
@@ -125,6 +287,42 @@ patientRouter.patch("/patients", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients/{id}:
+ *   patch:
+ *     summary: Actualiza un paciente por su _id
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PatientUpdate'
+ *     responses:
+ *       200:
+ *         description: Paciente actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       404:
+ *         description: Paciente no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.patch("/patients/:id", async (req, res) => {
   try {
     const { patientStatus, _id, ...updateData } = req.body;
@@ -152,6 +350,55 @@ patientRouter.patch("/patients/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients:
+ *   delete:
+ *     summary: Borrado lógico de paciente por query string
+ *     description: Marca al paciente como `inactive`. Requiere `identificationNumber` o `fullName`.
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: query
+ *         name: identificationNumber
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Documento de identificación
+ *       - in: query
+ *         name: fullName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Nombre completo
+ *     responses:
+ *       200:
+ *         description: Paciente marcado como inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Patient status set to inactive succesfully
+ *                 patient:
+ *                   $ref: '#/components/schemas/Patient'
+ *       400:
+ *         description: Falta el parámetro de identificación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Paciente no encontrado o ya inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.delete("/patients", async (req, res) => {
   try {
     const { identificationNumber, fullName } = req.query;
@@ -191,6 +438,41 @@ patientRouter.delete("/patients", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /patients/{id}:
+ *   delete:
+ *     summary: Borrado lógico de paciente por su _id
+ *     tags:
+ *       - Patients
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Paciente marcado como inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                 patient:
+ *                   $ref: '#/components/schemas/Patient'
+ *       404:
+ *         description: Paciente no encontrado o ya inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 patientRouter.delete("/patients/:id", async (req, res) => {
   try {
     const patient = await Patient.findOneAndUpdate(
