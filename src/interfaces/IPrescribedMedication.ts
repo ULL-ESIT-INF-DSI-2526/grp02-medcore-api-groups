@@ -1,7 +1,7 @@
-import { MedicationDocumentInterface } from "../models/medications.js";
+import { IMedication } from './IMedication.js'; 
 
 export interface IPrescribedMedication {
-  medication: MedicationDocumentInterface
-  amount: number
-  posology: string
+  medication: IMedication;
+  amount: number;
+  posology: string;
 }
