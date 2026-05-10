@@ -27,7 +27,7 @@ export const swaggerSpec: OAS3Definition = {
       description: "Servidor de desarrollo local",
     },
     {
-      url: "https://medcore-api.onrender.com",
+      url: "https://grp02-medcore-api-groups.onrender.com",
       description: "Servidor de producción (Render)",
     },
   ],
