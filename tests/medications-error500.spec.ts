@@ -49,11 +49,41 @@ describe("Medication Error 500 Catch", () => {
         .expect(500);
       expect(response.body).toHaveProperty("error");
     });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.prototype.save).mockRejectedValue("string error");
+      const response = await request(app)
+        .post("/medications")
+        .send({
+          commercialName: "Test",
+          activeIngredient: "Test",
+          nationalCode: "123456",
+          pharmaForm: "comprimido",
+          standardDose: 500,
+          doseUnit: "mg",
+          adminRoute: "oral",
+          stock: 100,
+          pricePerUnit: 0.5,
+          requiresPrescription: false,
+          expiryDate: new Date("2027-01-01"),
+          contraindications: [],
+        })
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
   });
 
   describe("GET /medications", () => {
     test("Should return 500 on unexpected error", async () => {
       vi.mocked(Medication.find).mockRejectedValue(new Error("DB error"));
+      const response = await request(app)
+        .get("/medications?nationalCode=654321")
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.find).mockRejectedValue("string error");
       const response = await request(app)
         .get("/medications?nationalCode=654321")
         .expect(500);
@@ -69,6 +99,14 @@ describe("Medication Error 500 Catch", () => {
         .expect(500);
       expect(response.body).toHaveProperty("error");
     });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findById).mockRejectedValue("string error");
+      const response = await request(app)
+        .get("/medications/60d21b4667d0d8992e610c85")
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
   });
 
   describe("PATCH /medications", () => {
@@ -76,6 +114,15 @@ describe("Medication Error 500 Catch", () => {
       vi.mocked(Medication.findOneAndUpdate).mockRejectedValue(
         new Error("DB error"),
       );
+      const response = await request(app)
+        .patch("/medications?nationalCode=654321")
+        .send({ stock: 50 })
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findOneAndUpdate).mockRejectedValue("string error");
       const response = await request(app)
         .patch("/medications?nationalCode=654321")
         .send({ stock: 50 })
@@ -95,6 +142,15 @@ describe("Medication Error 500 Catch", () => {
         .expect(500);
       expect(response.body).toHaveProperty("error");
     });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findByIdAndUpdate).mockRejectedValue("string error");
+      const response = await request(app)
+        .patch("/medications/60d21b4667d0d8992e610c85")
+        .send({ stock: 50 })
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
   });
 
   describe("DELETE /medications", () => {
@@ -107,6 +163,14 @@ describe("Medication Error 500 Catch", () => {
         .expect(500);
       expect(response.body).toHaveProperty("error");
     });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findOneAndUpdate).mockRejectedValue("string error");
+      const response = await request(app)
+        .delete("/medications?nationalCode=654321")
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
   });
 
   describe("DELETE /medications/:id", () => {
@@ -114,6 +178,14 @@ describe("Medication Error 500 Catch", () => {
       vi.mocked(Medication.findOneAndUpdate).mockRejectedValue(
         new Error("DB error"),
       );
+      const response = await request(app)
+        .delete("/medications/60d21b4667d0d8992e610c85")
+        .expect(500);
+      expect(response.body).toHaveProperty("error");
+    });
+
+    test("Should handle non-Error thrown object", async () => {
+      vi.mocked(Medication.findOneAndUpdate).mockRejectedValue("string error");
       const response = await request(app)
         .delete("/medications/60d21b4667d0d8992e610c85")
         .expect(500);

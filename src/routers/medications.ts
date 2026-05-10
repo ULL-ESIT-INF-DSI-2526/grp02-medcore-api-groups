@@ -22,7 +22,7 @@ medicationRouter.post("/medications", async (req, res) => {
     }
     return res.status(500).send({
       error: "Internal server error",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -47,7 +47,7 @@ medicationRouter.get("/medications", async (req, res) => {
   } catch (error) {
     return res.status(500).send({
       error: "Internal error while searching medications",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -62,7 +62,7 @@ medicationRouter.get("/medications/:id", async (req, res) => {
   } catch (error) {
     return res.status(500).send({
       error: "Internal error while searching medication",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -97,7 +97,7 @@ medicationRouter.patch("/medications", async (req, res) => {
     }
     return res.status(500).send({
       error: "Internal server error",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -122,7 +122,7 @@ medicationRouter.patch("/medications/:id", async (req, res) => {
     }
     return res.status(500).send({
       error: "Internal server error",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -152,7 +152,7 @@ medicationRouter.delete("/medications", async (req, res) => {
   } catch (error) {
     return res.status(500).send({
       error: "Failed to delete medication",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
@@ -171,7 +171,7 @@ medicationRouter.delete("/medications/:id", async (req, res) => {
   } catch (error) {
     return res.status(500).send({
       error: "Failed to delete medication",
-      details: error instanceof Error ? error.message : error,
+      details: String(error),
     });
   }
 });
