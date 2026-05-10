@@ -26,7 +26,7 @@ npm install
 3. **Variables de entorno:**
 Crea un archivo `.env` con lo siguiente:
 ```env
-MONGODB_URL=mongodb://localhost:27017/medcore-db
+MONGODB_URL=mongodb://127.0.0.1:27017/medcore-api
 PORT=3000
 
 ```
