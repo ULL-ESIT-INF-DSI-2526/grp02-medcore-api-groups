@@ -5,6 +5,61 @@ import { spec } from "node:test/reporters";
 
 export const staffRouter = express.Router();
 
+/**
+ * @swagger
+ * /staff:
+ *   get:
+ *     summary: Lista o busca personal médico
+ *     description: >
+ *       Sin parámetros devuelve todo el staff (active e inactive). Permite
+ *       filtrar por `fullName` (búsqueda parcial case-insensitive) o por
+ *       `specialty` (enumeración).
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: query
+ *         name: fullName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filtra por nombre (regex parcial, case-insensitive)
+ *       - in: query
+ *         name: specialty
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - medicina general
+ *             - cardiología
+ *             - traumatología
+ *             - pediatría
+ *             - oncología
+ *             - urgencias
+ *         description: Filtra por especialidad
+ *     responses:
+ *       200:
+ *         description: Lista de miembros del personal
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Staff'
+ *       400:
+ *         description: Especialidad no válida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No se han encontrado miembros del personal
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.get("/staff", async (req, res) => {
   try {
     if (req.query.fullName) {
@@ -43,6 +98,42 @@ staffRouter.get("/staff", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff/{id}:
+ *   get:
+ *     summary: Obtiene un miembro del personal por su _id
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Miembro del personal encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Staff'
+ *       400:
+ *         description: Formato de ID inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Miembro del personal no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.get("/staff/:id", async (req, res) => {
   try {
     const id = req.params.id;
@@ -59,6 +150,46 @@ staffRouter.get("/staff/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff:
+ *   post:
+ *     summary: Crea un nuevo miembro del personal
+ *     description: Si existía con estado `deleted`, lo reactiva (200).
+ *     tags:
+ *       - Staff
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/StaffCreate'
+ *     responses:
+ *       201:
+ *         description: Miembro del personal creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Staff'
+ *       200:
+ *         description: Miembro reactivado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Staff member already exists. Status changed from "deleted" to "active"
+ *       400:
+ *         description: Validación fallida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.post('/staff', async (req, res) => {
   try {
     const { collegiateNumber } = req.body;
@@ -81,6 +212,68 @@ staffRouter.post('/staff', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff:
+ *   patch:
+ *     summary: Actualiza personal por nombre o por especialidad
+ *     description: >
+ *       Requiere `fullName` (un único miembro) o `specialty` (actualización en
+ *       bloque de todos los miembros con esa especialidad).
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: query
+ *         name: fullName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Nombre del miembro a actualizar
+ *       - in: query
+ *         name: specialty
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Especialidad a actualizar en bloque
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/StaffUpdate'
+ *     responses:
+ *       200:
+ *         description: Miembro(s) actualizado(s)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/Staff'
+ *                 - type: object
+ *                   properties:
+ *                     msg:
+ *                       type: string
+ *                     updatedCount:
+ *                       type: integer
+ *                     staff:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Staff'
+ *       400:
+ *         description: Falta query o especialidad inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No se han encontrado miembros que coincidan
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.patch('/staff', async (req, res) => {
   try {
     const { fullName, specialty } = req.query;
@@ -126,6 +319,48 @@ staffRouter.patch('/staff', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff/{id}:
+ *   patch:
+ *     summary: Actualiza un miembro del personal por su _id
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/StaffUpdate'
+ *     responses:
+ *       200:
+ *         description: Miembro actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Staff'
+ *       400:
+ *         description: Formato de ID inválido o validación fallida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       404:
+ *         description: Miembro del personal no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.patch('/staff/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -154,6 +389,54 @@ staffRouter.patch('/staff/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff:
+ *   delete:
+ *     summary: Borrado lógico de personal por nombre o especialidad
+ *     description: Marca como `deleted` por `fullName` (uno) o `specialty` (en bloque).
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: query
+ *         name: fullName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Nombre del miembro a eliminar
+ *       - in: query
+ *         name: specialty
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Especialidad a eliminar en bloque
+ *     responses:
+ *       200:
+ *         description: Eliminación correcta
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                 deletedCount:
+ *                   type: integer
+ *       400:
+ *         description: Falta query o especialidad inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No se han encontrado miembros para eliminar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.delete('/staff', async (req, res) => {
   try {
     const { fullName, specialty } = req.query;
@@ -200,6 +483,47 @@ staffRouter.delete('/staff', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /staff/{id}:
+ *   delete:
+ *     summary: Borrado lógico de un miembro del personal por _id
+ *     tags:
+ *       - Staff
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Miembro marcado como deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                 staff:
+ *                   $ref: '#/components/schemas/Staff'
+ *       400:
+ *         description: Formato de ID inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Miembro del personal no encontrado o ya eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 staffRouter.delete("/staff/:id", async (req, res) => {
   try {
     const id = req.params.id;

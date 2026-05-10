@@ -3,6 +3,50 @@ import { Medication } from "../models/medications.js";
 
 export const medicationRouter = express.Router();
 
+/**
+ * @swagger
+ * /medications:
+ *   post:
+ *     summary: Crea un nuevo medicamento
+ *     description: >
+ *       Crea un medicamento. Si ya existía con estado `inactive`, lo reactiva
+ *       (200).
+ *     tags:
+ *       - Medications
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MedicationCreate'
+ *     responses:
+ *       201:
+ *         description: Medicamento creado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       200:
+ *         description: Medicamento reactivado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Medication reactivated successfully
+ *                 medication:
+ *                   $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Validación fallida o nationalCode duplicado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.post("/medications", async (req, res) => {
   try {
     const { nationalCode } = req.body;
@@ -40,6 +84,53 @@ medicationRouter.post("/medications", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications:
+ *   get:
+ *     summary: Lista o busca medicamentos
+ *     description: >
+ *       Devuelve medicamentos activos filtrados por `commercialName`,
+ *       `activeIngredient` y/o `nationalCode` (combinables).
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: query
+ *         name: commercialName
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Nombre comercial
+ *       - in: query
+ *         name: activeIngredient
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Principio activo
+ *       - in: query
+ *         name: nationalCode
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Código nacional
+ *     responses:
+ *       200:
+ *         description: Medicamentos encontrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Medication'
+ *       404:
+ *         description: No se han encontrado medicamentos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.get("/medications", async (req, res) => {
   try {
     const filter: Record<string, unknown> = { status: 'active' };
@@ -65,6 +156,42 @@ medicationRouter.get("/medications", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications/{id}:
+ *   get:
+ *     summary: Obtiene un medicamento por su _id
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Medicamento encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Formato de ID inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Medicamento no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.get("/medications/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -84,6 +211,58 @@ medicationRouter.get("/medications/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications:
+ *   patch:
+ *     summary: Actualiza un medicamento por query string
+ *     description: Requiere al menos uno de los parámetros (`commercialName`, `activeIngredient` o `nationalCode`).
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: query
+ *         name: commercialName
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: activeIngredient
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: nationalCode
+ *         required: false
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MedicationUpdate'
+ *     responses:
+ *       200:
+ *         description: Medicamento actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Falta query o validación fallida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Medicamento no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.patch("/medications", async (req, res) => {
   const { commercialName, activeIngredient, nationalCode } = req.query;
   if (!commercialName && !activeIngredient && !nationalCode) {
@@ -119,6 +298,48 @@ medicationRouter.patch("/medications", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications/{id}:
+ *   patch:
+ *     summary: Actualiza un medicamento por su _id
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MedicationUpdate'
+ *     responses:
+ *       200:
+ *         description: Medicamento actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Formato de ID inválido o validación fallida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Medicamento no encontrado o inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.patch("/medications/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -148,6 +369,52 @@ medicationRouter.patch("/medications/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications:
+ *   delete:
+ *     summary: Borrado lógico de medicamento por query string
+ *     description: Requiere al menos uno de los parámetros (`commercialName`, `activeIngredient` o `nationalCode`).
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: query
+ *         name: commercialName
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: activeIngredient
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: nationalCode
+ *         required: false
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Medicamento marcado como inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Falta el parámetro de búsqueda
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Medicamento no encontrado o ya inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.delete("/medications", async (req, res) => {
   const { commercialName, activeIngredient, nationalCode } = req.query;
   if (!commercialName && !activeIngredient && !nationalCode) {
@@ -178,6 +445,42 @@ medicationRouter.delete("/medications", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /medications/{id}:
+ *   delete:
+ *     summary: Borrado lógico de medicamento por su _id
+ *     tags:
+ *       - Medications
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Identificador único de MongoDB
+ *     responses:
+ *       200:
+ *         description: Medicamento marcado como inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Medication'
+ *       400:
+ *         description: Formato de ID inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Medicamento no encontrado o ya inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
 medicationRouter.delete("/medications/:id", async (req, res) => {
   try {
     const { id } = req.params;
