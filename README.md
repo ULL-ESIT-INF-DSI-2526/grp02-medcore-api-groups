@@ -22,11 +22,12 @@ cd grp02-medcore-api-groups
 npm install
 ```
 
-Nota sobre seguridad: Por motivos estrictamente académicos y para facilitar la corrección y el despliegue rápido, se han incluido las variables de entorno en el repositorio. En un entorno de producción real, el archivo .env estaría incluido en el .gitignore y las credenciales se gestionarían de forma segura (ej. Secretos de GitHub o variables de entorno del servidor como hemos hecho con mongo y render)
+Nota sobre seguridad: Por motivos estrictamente académicos y para facilitar la corrección y el despliegue rápido, se han incluido las variables de entorno en el repositorio. En un entorno de producción real, el archivo .env estaría incluido en el .gitignore y las credenciales se gestionarían de forma segura (ej. Secretos de GitHub o variables de entorno del servidor como hemos hecho con mongo y render), en caso real debería hacerse el paso 3 descrito a continuación
+
 3. **Variables de entorno:**
 Crea un archivo `.env` con lo siguiente:
 ```env
-MONGODB_URL=mongodb://127.0.0.1:27017/medcore-api
+MONGODB_URL=mongodb://tu_url_de_atlas_aqui/medcore-api
 PORT=3000
 
 ```
