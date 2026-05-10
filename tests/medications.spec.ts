@@ -56,7 +56,17 @@ describe("Medication API", () => {
       expect(saved!.activeIngredient).toBe("Paracetamol");
     });
 
-    test("Should return 400 with duplicate nationalCode", async () => {
+    test("Should reactivate an inactive medication with same nationalCode", async () => {
+      await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+      const res = await request(app)
+        .post("/medications")
+        .send(firstMedication)
+        .expect(200);
+      expect(res.body).toHaveProperty("msg");
+      expect(res.body.medication.status).toBe("active");
+    });
+
+    test("Should return 400 with duplicate active nationalCode", async () => {
       const res = await request(app)
         .post("/medications")
         .send(firstMedication)
@@ -126,6 +136,14 @@ describe("Medication API", () => {
           .expect(404);
         expect(res.body).toHaveProperty("error");
       });
+
+      test("Should return 404 if medication is inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .get("/medications?nationalCode=654321")
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
     });
 
     describe("Search by database ID", () => {
@@ -144,10 +162,18 @@ describe("Medication API", () => {
         expect(res.body).toHaveProperty("error");
       });
 
-      test("Should return 500 with invalid id format", async () => {
+      test("Should return 400 with invalid id format", async () => {
         const res = await request(app)
           .get("/medications/invalidformat")
-          .expect(500);
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 404 if medication is inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .get(`/medications/${createdMedicationId}`)
+          .expect(404);
         expect(res.body).toHaveProperty("error");
       });
     });
@@ -187,6 +213,15 @@ describe("Medication API", () => {
         expect(res.body).toHaveProperty("error");
       });
 
+      test("Should return 404 if medication is inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .patch("/medications?nationalCode=654321")
+          .send({ stock: 50 })
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+
       test("Should return 400 if no query string provided", async () => {
         const res = await request(app)
           .patch("/medications")
@@ -216,10 +251,35 @@ describe("Medication API", () => {
         expect(updated!.stock).toBe(75);
       });
 
+      test("Should return 400 with invalid update value by id", async () => {
+        const res = await request(app)
+          .patch(`/medications/${createdMedicationId}`)
+          .send({ stock: -10 })
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 400 with invalid id format", async () => {
+        const res = await request(app)
+          .patch("/medications/invalidformat")
+          .send({ stock: 50 })
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
+      });
+
       test("Should return 404 if id does not exist", async () => {
         const res = await request(app)
           .patch("/medications/000000000000000000000000")
           .send({ stock: 75 })
+          .expect(404);
+        expect(res.body).toHaveProperty("error");
+      });
+
+      test("Should return 404 if medication is inactive", async () => {
+        await Medication.findByIdAndUpdate(createdMedicationId, { status: "inactive" });
+        const res = await request(app)
+          .patch(`/medications/${createdMedicationId}`)
+          .send({ stock: 50 })
           .expect(404);
         expect(res.body).toHaveProperty("error");
       });
@@ -290,6 +350,13 @@ describe("Medication API", () => {
         const med = await Medication.findById(createdMedicationId);
         expect(med).not.toBe(null);
         expect(med!.status).toBe("inactive");
+      });
+
+      test("Should return 400 with invalid id format", async () => {
+        const res = await request(app)
+          .delete("/medications/invalidformat")
+          .expect(400);
+        expect(res.body).toHaveProperty("error");
       });
 
       test("Should return 404 if medication is already inactive", async () => {

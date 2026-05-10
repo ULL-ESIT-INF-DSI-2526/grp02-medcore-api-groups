@@ -7,11 +7,3 @@ export type PharmaFormType =
   | 'parche transdérmico'
   | 'inhalador'
   | 'otra';
-
-export type AdminRouteType =
-  | 'oral'
-  | 'intravenosa'
-  | 'intramuscular'
-  | 'subcutánea'
-  | 'tópica'
-  | 'inhalatoria';
