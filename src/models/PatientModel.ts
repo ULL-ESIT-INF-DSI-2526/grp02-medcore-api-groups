@@ -1,4 +1,4 @@
-import { Document, Schema, model, models } from "mongoose";
+import mongoose, { Document, Schema, model, CallbackError } from "mongoose";
 import validator from "validator";
 import { IPatient } from "../interfaces/IPatient.js";
 import { BloodGroup } from "../enums/BloodGroups.js";
@@ -142,18 +142,25 @@ PatientSchema.set('toObject', { virtuals: true });
  * Middleware de validacion que asegura que existe al menos un identificador
  * del paciente, sea de seg social, de historial clinico, o ambos
  */
-PatientSchema.pre("validate", function (next) {
-  if (!this.socialNumber && !this.clinicNumber) {
-    return next(new Error("At least one ID, social or clinic, is required"));
+PatientSchema.pre("validate", function(this: PatientDocumentInterface, next) {
+  const hasSocialNumber = this.socialNumber && this.socialNumber.trim() !== "";
+  const hasClinicNumber = this.clinicNumber && this.clinicNumber.trim() !== "";
+  
+  if (!hasSocialNumber && !hasClinicNumber) {
+    const error = new Error("At least one ID, social or clinic, is required");
+    if (next && typeof next === 'function') {
+      return next(error);
+    }
+    throw error;
   }
-  next();
+  
+  if (next && typeof next === 'function') {
+    next();
+  }
 });
 
 /**
  * Modelo Paciente de Mongoose para la gestion de pacientes
  * Incluye validaciones para IDs
  */
-export const Patient = models.Patient || model<PatientDocumentInterface>(
-  "Patient",
-  PatientSchema,
-);
+export const Patient = mongoose.models.Patient || model<PatientDocumentInterface>("Patient", PatientSchema);

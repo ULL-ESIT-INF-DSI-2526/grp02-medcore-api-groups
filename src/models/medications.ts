@@ -1,5 +1,5 @@
-import { IMedication } from '../interfaces/IMedication.js';
 import mongoose, { Schema, model } from 'mongoose';
+import { IMedication } from '../interfaces/IMedication.js';
 
 const MedicationSchema = new Schema<IMedication>({
   commercialName: {
